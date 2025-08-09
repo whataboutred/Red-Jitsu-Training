@@ -10,6 +10,8 @@ import {
   Settings,
   ListChecks,
   Activity,
+  Menu,
+  X,
 } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
@@ -17,7 +19,8 @@ import { useEffect, useRef, useState } from 'react'
 
 export default function Nav() {
   const router = useRouter()
-  const [addOpen, setAddOpen] = useState(false)
+  const [addOpen, setAddOpen] = useState(false)      // desktop add-session
+  const [mobileOpen, setMobileOpen] = useState(false) // mobile slide-over
   const addRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -26,13 +29,17 @@ export default function Nav() {
     }
   }, [])
 
+  // close desktop dropdown on outside click/escape
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!addRef.current) return
       if (!addRef.current.contains(e.target as Node)) setAddOpen(false)
     }
     function onKey(e: KeyboardEvent) {
-      if (e.key === 'Escape') setAddOpen(false)
+      if (e.key === 'Escape') {
+        setAddOpen(false)
+        setMobileOpen(false)
+      }
     }
     document.addEventListener('mousedown', onDocClick)
     document.addEventListener('keydown', onKey)
@@ -42,9 +49,15 @@ export default function Nav() {
     }
   }, [])
 
+  async function signOut() {
+    await supabase.auth.signOut()
+    router.push('/login')
+  }
+
   return (
     <nav className="sticky top-0 z-50 bg-black/40 backdrop-blur border-b border-white/10">
       <div className="max-w-4xl mx-auto flex items-center justify-between p-3">
+        {/* Brand */}
         <Link href="/dashboard" className="flex items-center gap-2">
           <Image
             src="/red-jitsu-logo.png?v=3"
@@ -57,9 +70,10 @@ export default function Nav() {
           <span className="font-semibold">Red Jitsu Training</span>
         </Link>
 
-        <div className="flex items-center gap-3">
-          {/* Add session dropdown — hidden on mobile, visible md+ */}
-          <div className="relative hidden md:block" ref={addRef}>
+        {/* Desktop actions */}
+        <div className="hidden md:flex items-center gap-3">
+          {/* Add session dropdown */}
+          <div className="relative" ref={addRef}>
             <button
               type="button"
               className="toggle"
@@ -110,21 +124,66 @@ export default function Nav() {
           <Link href="/settings" className="toggle">
             <Settings className="w-4 h-4" /> Settings
           </Link>
-          <button
-            onClick={async () => {
-              await supabase.auth.signOut()
-              router.push('/login')
-            }}
-            className="toggle"
-            title="Sign out"
-          >
+          <button onClick={signOut} className="toggle" title="Sign out">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
+
+        {/* Mobile hamburger */}
+        <button
+          className="md:hidden toggle px-3 py-2"
+          aria-label="Open menu"
+          onClick={() => setMobileOpen(true)}
+        >
+          <Menu className="w-5 h-5" />
+        </button>
       </div>
+
+      {/* Mobile slide-over menu */}
+      {mobileOpen && (
+        <div className="md:hidden fixed inset-0 z-[60]">
+          {/* backdrop */}
+          <button
+            aria-label="Close menu"
+            className="absolute inset-0 bg-black/60"
+            onClick={() => setMobileOpen(false)}
+          />
+          {/* panel */}
+          <div className="absolute right-0 top-0 h-full w-72 bg-neutral-950 border-l border-white/10 p-4">
+            <div className="flex items-center justify-between mb-3">
+              <span className="font-semibold">Menu</span>
+              <button className="toggle" onClick={() => setMobileOpen(false)} aria-label="Close">
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <div className="grid gap-2">
+              <div className="text-white/60 text-xs mb-1">Quick add</div>
+              <Link href="/workouts/new" onClick={() => setMobileOpen(false)} className="btn w-full">
+                Workout
+              </Link>
+              <Link href="/jiu-jitsu" onClick={() => setMobileOpen(false)} className="toggle w-full">
+                Jiu Jitsu
+              </Link>
+
+              <div className="text-white/60 text-xs mt-4 mb-1">Navigation</div>
+              <Link href="/history" onClick={() => setMobileOpen(false)} className="toggle w-full">
+                <History className="w-4 h-4" /> History
+              </Link>
+              <Link href="/programs" onClick={() => setMobileOpen(false)} className="toggle w-full">
+                <ListChecks className="w-4 h-4" /> Programs
+              </Link>
+              <Link href="/settings" onClick={() => setMobileOpen(false)} className="toggle w-full">
+                <Settings className="w-4 h-4" /> Settings
+              </Link>
+
+              <button onClick={async () => { setMobileOpen(false); await signOut(); }} className="toggle w-full mt-4">
+                <LogOut className="w-4 h-4" /> Sign out
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </nav>
   )
 }
-
-// Mark as a module even if someone edits out imports in the future.
-export {}
