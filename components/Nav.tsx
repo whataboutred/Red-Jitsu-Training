@@ -158,6 +158,11 @@ export default function Nav() {
             priority
           />
           <span className="font-semibold">Red Jitsu Training</span>
+          {DEMO && (
+            <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">
+              demo
+            </span>
+          )}
         </Link>
 
         {/* Desktop actions */}
