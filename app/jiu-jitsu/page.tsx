@@ -11,8 +11,20 @@ type Kind = 'Class' | 'Drilling' | 'Open Mat'
 type Intensity = 'low' | 'medium' | 'high'
 
 export default function JiuJitsuPage() {
-  const [demo, setDemo] = useState(false)
   const router = useRouter()
+  const [demo, setDemo] = useState(false)
+  // default local datetime for backdating
+  const [performedAt, setPerformedAt] = useState<string>(() => {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    return d.toISOString().slice(0, 16) // YYYY-MM-DDTHH:mm
+  })
+
+  // form state
+  const [kind, setKind] = useState<Kind>('Class')
+  const [duration, setDuration] = useState<number>(60)
+  const [intensity, setIntensity] = useState<Intensity>('medium')
+  const [notes, setNotes] = useState<string>('')
 
   useEffect(() => {
     ;(async () => {
@@ -27,39 +39,13 @@ export default function JiuJitsuPage() {
     })()
   }, [])
 
-  if (demo) {
-    return (
-      <div>
-        <Nav />
-        <main className="p-4 max-w-xl mx-auto">
-          <h1 className="text-xl font-semibold mb-2">Demo mode</h1>
-          <p className="text-white/70">
-            You're viewing the app in read-only demo mode. To log your own
-            sessions, please <Link href="/login" className="underline">sign in</Link>.
-          </p>
-        </main>
-      </div>
-    )
-  }
-
-  // default local datetime for backdating
-  const [performedAt, setPerformedAt] = useState<string>(() => {
-    const d = new Date()
-    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-    return d.toISOString().slice(0, 16) // YYYY-MM-DDTHH:mm
-  })
-
-  // form state
-  const [kind, setKind] = useState<Kind>('Class')
-  const [duration, setDuration] = useState<number>(60)
-  const [intensity, setIntensity] = useState<Intensity>('medium')
-  const [notes, setNotes] = useState<string>('')
+  // Demo mode will still allow creating sessions, they'll just be saved offline
 
   function toISO(dtLocal: string) {
     return new Date(dtLocal).toISOString()
   }
 
-  async function save() {
+  async function saveOnline() {
     const userId = await getActiveUserId()
     if (!userId) { alert('Please sign in again.'); return }
 
@@ -77,6 +63,24 @@ export default function JiuJitsuPage() {
 
     if (error) { alert('Save failed.'); return }
     alert('Saved Jiu Jitsu session.')
+    router.push('/dashboard')
+  }
+
+  async function saveOffline() {
+    const minutes = Math.min(600, Math.max(5, Number(duration || 60)))
+    const temp = Math.random().toString(36).slice(2)
+    const session = {
+      tempId: temp,
+      performed_at: toISO(performedAt),
+      kind: kind === 'Open Mat' ? 'open_mat' : (kind.toLowerCase()),
+      duration_min: minutes,
+      intensity,
+      notes: notes || null
+    }
+    // Store in localStorage for now
+    const key = `bjj_pending_${temp}`
+    localStorage.setItem(key, JSON.stringify(session))
+    alert('Saved offline. We will sync when you are online.')
     router.push('/dashboard')
   }
 
@@ -162,7 +166,7 @@ export default function JiuJitsuPage() {
         </div>
 
         <div className="flex gap-2">
-          <button className="btn" onClick={save}>Save</button>
+          <button className="btn" onClick={demo ? saveOffline : saveOnline}>Save{demo ? ' Offline' : ''}</button>
           <button className="toggle" onClick={() => router.push('/dashboard')}>Cancel</button>
         </div>
       </main>
