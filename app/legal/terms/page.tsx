@@ -1,6 +1,12 @@
+'use client'
+
+import Nav from '@/components/Nav'
+
 export default function TermsPage() {
   return (
-    <main className="max-w-3xl mx-auto p-6 space-y-6">
+    <div>
+      <Nav />
+      <main className="max-w-3xl mx-auto p-6 space-y-6">
       <h1 className="text-2xl font-semibold">Terms of Use</h1>
       <p className="text-white/70 text-sm">
         Last updated: {new Date().toLocaleDateString()}
@@ -47,5 +53,6 @@ export default function TermsPage() {
         .
       </p>
     </main>
+    </div>
   )
 }
