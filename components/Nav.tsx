@@ -191,7 +191,7 @@ export default function Nav() {
           <div className="relative" ref={addRef}>
             <button
               type="button"
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5"
               onClick={() => setAddOpen(v => !v)}
               aria-haspopup="menu"
               aria-expanded={addOpen}
@@ -217,25 +217,25 @@ export default function Nav() {
             )}
           </div>
 
-          <Link href="/history" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
+          <Link href="/history" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
             <History className="w-4 h-4" /> History
           </Link>
-          <Link href="/programs" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
+          <Link href="/programs" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
             <ListChecks className="w-4 h-4" /> Workout Programs
           </Link>
-          <Link href="/jiu-jitsu" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
+          <Link href="/jiu-jitsu" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
             <Activity className="w-4 h-4" /> Jiu Jitsu
           </Link>
-          <Link href="/settings" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
+          <Link href="/settings" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
             <Settings className="w-4 h-4" /> Settings
           </Link>
-          <Link href="/legal/privacy" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
+          <Link href="/legal/privacy" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
             Privacy
           </Link>
-          <Link href="/legal/terms" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
+          <Link href="/legal/terms" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
             Terms
           </Link>
-          <button onClick={signOut} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5" title="Sign out">
+          <button onClick={signOut} className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5" title="Sign out">
             <LogOut className="w-4 h-4" />
           </button>
         </div>
