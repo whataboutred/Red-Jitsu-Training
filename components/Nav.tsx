@@ -16,11 +16,108 @@ import {
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
 import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
+
+function MobileMenu({
+  onClose,
+  signOut,
+}: {
+  onClose: () => void
+  signOut: () => Promise<void>
+}) {
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => {
+    setMounted(true)
+    return () => setMounted(false)
+  }, [])
+  if (!mounted) return null
+
+  return createPortal(
+    <div className="fixed inset-0 z-[100000]">
+      {/* Solid, opaque background that fully covers the app */}
+      <div
+        className="absolute inset-0 bg-black"
+        onClick={onClose}
+        aria-hidden="true"
+      />
+      {/* Content layer */}
+      <div className="absolute inset-0 text-white flex flex-col">
+        {/* Header */}
+        <div
+          className="flex items-center justify-between px-4 pb-3 border-b border-white/10"
+          style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}
+        >
+          <span className="font-semibold">Menu</span>
+          <button
+            className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80"
+            onClick={onClose}
+            aria-label="Close"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className="p-4 space-y-3 overflow-y-auto flex-1">
+          <div className="text-white/60 text-xs">Quick add</div>
+          <Link
+            href="/workouts/new"
+            onClick={onClose}
+            className="block rounded-xl bg-red-600 hover:bg-red-700 px-4 py-3 text-center font-medium"
+          >
+            Workout
+          </Link>
+          <Link
+            href="/jiu-jitsu"
+            onClick={onClose}
+            className="block rounded-xl border border-white/10 px-4 py-3 text-center"
+          >
+            Jiu Jitsu
+          </Link>
+
+          <div className="text-white/60 text-xs pt-3">Navigation</div>
+          <Link
+            href="/history"
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3"
+          >
+            <History className="w-4 h-4" /> History
+          </Link>
+          <Link
+            href="/programs"
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3"
+          >
+            <ListChecks className="w-4 h-4" /> Programs
+          </Link>
+          <Link
+            href="/settings"
+            onClick={onClose}
+            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3"
+          >
+            <Settings className="w-4 h-4" /> Settings
+          </Link>
+
+          <button
+            onClick={async () => {
+              onClose()
+              await signOut()
+            }}
+            className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3"
+          >
+            <LogOut className="w-4 h-4" /> Sign out
+          </button>
+        </div>
+      </div>
+    </div>,
+    document.body
+  )
+}
 
 export default function Nav() {
   const router = useRouter()
-  const [addOpen, setAddOpen] = useState(false)       // desktop add-session
-  const [mobileOpen, setMobileOpen] = useState(false) // mobile overlay
+  const [addOpen, setAddOpen] = useState(false)
+  const [mobileOpen, setMobileOpen] = useState(false)
   const addRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -59,7 +156,7 @@ export default function Nav() {
         {/* Brand */}
         <Link href="/dashboard" className="flex items-center gap-2">
           <Image
-            src="/red-jitsu-logo.png?v=13"
+            src="/red-jitsu-logo.png?v=14"
             alt="Red Jitsu Training"
             width={28}
             height={28}
@@ -92,7 +189,6 @@ export default function Nav() {
                   href="/workouts/new"
                   onClick={() => setAddOpen(false)}
                   className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-white/5"
-                  role="menuitem"
                 >
                   <Dumbbell className="w-4 h-4" />
                   Strength workout
@@ -101,7 +197,6 @@ export default function Nav() {
                   href="/jiu-jitsu"
                   onClick={() => setAddOpen(false)}
                   className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-white/5"
-                  role="menuitem"
                 >
                   <Activity className="w-4 h-4" />
                   Jiu Jitsu session
@@ -137,64 +232,12 @@ export default function Nav() {
         </button>
       </div>
 
-      {/* Mobile FULL-SCREEN menu (opaque) */}
+      {/* Mobile menu (portal) */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-[9999] bg-black text-white">
-          {/* header */}
-          <div
-            className="flex items-center justify-between px-4 pb-3 border-b border-white/10"
-            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}
-          >
-            <span className="font-semibold">Menu</span>
-            <button
-              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80"
-              onClick={() => setMobileOpen(false)}
-              aria-label="Close"
-            >
-              <X className="w-5 h-5" />
-            </button>
-          </div>
-
-          {/* body */}
-          <div className="p-4 space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 70px)' }}>
-            <div className="text-white/60 text-xs">Quick add</div>
-            <Link
-              href="/workouts/new"
-              onClick={() => setMobileOpen(false)}
-              className="block rounded-xl bg-red-600 hover:bg-red-700 px-4 py-3 text-center font-medium"
-            >
-              Workout
-            </Link>
-            <Link
-              href="/jiu-jitsu"
-              onClick={() => setMobileOpen(false)}
-              className="block rounded-xl border border-white/10 px-4 py-3 text-center"
-            >
-              Jiu Jitsu
-            </Link>
-
-            <div className="text-white/60 text-xs pt-3">Navigation</div>
-            <Link href="/history" onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
-              <History className="w-4 h-4" /> History
-            </Link>
-            <Link href="/programs" onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
-              <ListChecks className="w-4 h-4" /> Programs
-            </Link>
-            <Link href="/settings" onClick={() => setMobileOpen(false)}
-                  className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
-              <Settings className="w-4 h-4" /> Settings
-            </Link>
-
-            <button
-              onClick={async () => { setMobileOpen(false); await signOut(); }}
-              className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3"
-            >
-              <LogOut className="w-4 h-4" /> Sign out
-            </button>
-          </div>
-        </div>
+        <MobileMenu
+          onClose={() => setMobileOpen(false)}
+          signOut={signOut}
+        />
       )}
     </nav>
   )
