@@ -85,7 +85,7 @@ function MobileMenu({
             <History className="w-4 h-4" /> History
           </Link>
           <Link href="/programs" onClick={onClose} className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
-            <ListChecks className="w-4 h-4" /> Programs
+            <ListChecks className="w-4 h-4" /> Workout Programs
           </Link>
           <Link href="/settings" onClick={onClose} className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
             <Settings className="w-4 h-4" /> Settings
@@ -221,7 +221,7 @@ export default function Nav() {
             <History className="w-4 h-4" /> History
           </Link>
           <Link href="/programs" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
-            <ListChecks className="w-4 h-4" /> Programs
+            <ListChecks className="w-4 h-4" /> Workout Programs
           </Link>
           <Link href="/jiu-jitsu" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
             <Activity className="w-4 h-4" /> Jiu Jitsu

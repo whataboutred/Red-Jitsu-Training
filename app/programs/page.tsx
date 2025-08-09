@@ -263,12 +263,12 @@ export default function ProgramsPage(){
       <Nav/>
       <main className="max-w-4xl mx-auto p-4 space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl">Programs</h1>
+          <h1 className="text-2xl">Workout Programs</h1>
           <button className="btn" onClick={newProgram}>+ New Program</button>
         </div>
 
         <div className="card">
-          <div className="font-medium mb-3">Your Programs</div>
+          <div className="font-medium mb-3">Your Workout Programs</div>
           <div className="grid gap-2">
             {programs.map(p=>(
               <div key={p.id} className="flex items-center justify-between">
@@ -280,7 +280,7 @@ export default function ProgramsPage(){
                 </div>
               </div>
             ))}
-            {!programs.length && <div className="text-white/60">No programs yet. Create one above.</div>}
+            {!programs.length && <div className="text-white/60">No workout programs yet. Create one above.</div>}
           </div>
         </div>
 
