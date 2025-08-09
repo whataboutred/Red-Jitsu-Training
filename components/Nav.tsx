@@ -25,7 +25,6 @@ export default function Nav() {
     }
   }, [])
 
-  // Close the Add Session menu when clicking outside / pressing ESC
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!addRef.current) return
@@ -51,8 +50,8 @@ export default function Nav() {
         </Link>
 
         <div className="flex items-center gap-3">
-          {/* Add session dropdown */}
-          <div className="relative" ref={addRef}>
+          {/* Add session dropdown — hidden on mobile, visible md+ */}
+          <div className="relative hidden md:block" ref={addRef}>
             <button
               type="button"
               className="toggle"
