@@ -1,6 +1,7 @@
 'use client'
 
 import Nav from '@/components/Nav'
+import DeleteAllData from '@/components/DeleteAllData'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId } from '@/lib/activeUser'
@@ -151,6 +152,9 @@ export default function SettingsPage(){
         </div>
 
         <button className="btn" onClick={save}>Save</button>
+
+        {/* Delete all data section */}
+        <DeleteAllData />
       </main>
     </div>
   )
