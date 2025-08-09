@@ -36,8 +36,11 @@ export default function ProgramsPage(){
   const [demo, setDemo] = useState(false)
 
   useEffect(() => {
-    // detect demo visitor client-side
-    ;(async () => setDemo(await isDemoVisitor()))()
+    ;(async () => {
+      const isDemo = await isDemoVisitor()
+      setDemo(isDemo)
+      if (isDemo) return
+    })()
   }, [])
 
   if (demo) {

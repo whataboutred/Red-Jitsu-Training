@@ -15,8 +15,16 @@ export default function JiuJitsuPage() {
   const router = useRouter()
 
   useEffect(() => {
-    // detect demo visitor client-side
-    ;(async () => setDemo(await isDemoVisitor()))()
+    ;(async () => {
+      const isDemo = await isDemoVisitor()
+      setDemo(isDemo)
+      if (isDemo) return
+
+      const userId = await getActiveUserId()
+      if (!userId && !DEMO) {
+        window.location.href = '/login'
+      }
+    })()
   }, [])
 
   if (demo) {
@@ -46,14 +54,6 @@ export default function JiuJitsuPage() {
   const [duration, setDuration] = useState<number>(60)
   const [intensity, setIntensity] = useState<Intensity>('medium')
   const [notes, setNotes] = useState<string>('')
-
-  // auth guard
-  useEffect(() => {
-    ;(async () => {
-      const { data: { user } } = await supabase.auth.getUser()
-      if (!user && !DEMO) { window.location.href = '/login' }
-    })()
-  }, [])
 
   function toISO(dtLocal: string) {
     return new Date(dtLocal).toISOString()
