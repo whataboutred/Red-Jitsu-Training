@@ -174,16 +174,17 @@ export default function Dashboard() {
     )
 
   return (
-    <div className="relative min-h-screen">
+    <div className="relative min-h-screen bg-black">
       {/* Background Logo */}
-      <div className="fixed inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: -1 }}>
-        <div className="relative w-[600px] h-[600px] opacity-[0.03]">
+      <div className="fixed inset-0 flex items-center justify-center pointer-events-none overflow-hidden" style={{ zIndex: -1 }}>
+        <div className="relative w-[800px] h-[800px] opacity-[0.07] mix-blend-lighten">
           <Image
             src="/red-jitsu-logo.png"
             alt=""
             fill
             style={{ objectFit: 'contain' }}
             priority
+            className="select-none"
           />
         </div>
       </div>
