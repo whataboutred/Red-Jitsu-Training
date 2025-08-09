@@ -1,6 +1,6 @@
 /* public/sw.js */
 // Bump this to force clients to fetch the latest assets
-const CACHE = 'rjt-v21';
+const CACHE = 'rjt-v22';
 
 self.addEventListener('install', () => {
   // Take control immediately
