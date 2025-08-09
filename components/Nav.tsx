@@ -1,6 +1,7 @@
 'use client'
 
 import Link from 'next/link'
+import Image from 'next/image'
 import {
   Dumbbell,
   History,
@@ -45,7 +46,15 @@ export default function Nav() {
     <nav className="sticky top-0 z-50 bg-black/40 backdrop-blur border-b border-white/10">
       <div className="max-w-4xl mx-auto flex items-center justify-between p-3">
         <Link href="/dashboard" className="flex items-center gap-2">
-          <Dumbbell className="w-5 h-5" />
+          {/* Brand logo (from /public) */}
+          <Image
+            src="/red-jitsu-logo.png?v=3"
+            alt="Red Jitsu Training"
+            width={28}
+            height={28}
+            className="rounded-full"
+            priority
+          />
           <span className="font-semibold">Red Jitsu Training</span>
         </Link>
 
