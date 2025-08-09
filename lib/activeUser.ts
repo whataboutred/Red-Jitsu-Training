@@ -28,8 +28,4 @@ export async function getActiveUserId(): Promise<string | null> {
   }
 }
 
-/** True if the current visitor is in demo mode without a session (read-only). */
-export async function isDemoVisitor(): Promise<boolean> {
-  const { data } = await supabase.auth.getUser()
-  return !data?.user?.id && DEMO
-}
+
