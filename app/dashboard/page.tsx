@@ -1,6 +1,7 @@
 'use client'
 
 import Nav from '@/components/Nav'
+import Disclaimer from '@/components/Disclaimer'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
@@ -297,6 +298,9 @@ export default function Dashboard() {
           successful.” - Eric Thomas
         </div>
       </main>
+
+      {/* Medical Disclaimer */}
+      <Disclaimer />
 
       {/* Sticky bottom action bar — mobile only */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 z-40 bg-black/90 backdrop-blur border-t border-white/10">
