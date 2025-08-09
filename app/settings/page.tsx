@@ -3,6 +3,7 @@
 import Nav from '@/components/Nav'
 import DeleteAllData from '@/components/DeleteAllData'
 import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId } from '@/lib/activeUser'
 
@@ -17,6 +18,7 @@ type Profile = {
 export default function SettingsPage(){
   const [loading, setLoading] = useState(true)
   const [unit, setUnit] = useState<'lb'|'kg'>('lb')
+  const router = useRouter()
 
   // Strength goal
   const [weeklyGoal, setWeeklyGoal] = useState<number>(4)
@@ -56,7 +58,7 @@ export default function SettingsPage(){
       goal_start: goalStart || null,
       bjj_weekly_goal: Math.min(14, Math.max(1, bjjWeeklyGoal||2))
     }).eq('id', userId)
-    alert('Saved settings')
+    router.push('/dashboard') // Redirect to dashboard to refresh goals
   }
 
   if (loading) return (<div><Nav/><main className="max-w-3xl mx-auto p-4">Loading…</main></div>)
