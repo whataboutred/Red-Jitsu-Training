@@ -20,7 +20,7 @@ import { useEffect, useRef, useState } from 'react'
 export default function Nav() {
   const router = useRouter()
   const [addOpen, setAddOpen] = useState(false)       // desktop add-session
-  const [mobileOpen, setMobileOpen] = useState(false) // mobile slide-over
+  const [mobileOpen, setMobileOpen] = useState(false) // mobile drawer
   const addRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -29,7 +29,6 @@ export default function Nav() {
     }
   }, [])
 
-  // close desktop dropdown / mobile drawer on outside click + ESC
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!addRef.current) return
@@ -60,19 +59,18 @@ export default function Nav() {
         {/* Brand */}
         <Link href="/dashboard" className="flex items-center gap-2">
           <Image
-            src="/red-jitsu-logo.png?v=4"
+            src="/red-jitsu-logo.png?v=5"
             alt="Red Jitsu Training"
             width={28}
             height={28}
             className="rounded-full"
             priority
           />
-          <span className="font-semibold">Red Jitsu Training</span>
+        <span className="font-semibold">Red Jitsu Training</span>
         </Link>
 
         {/* Desktop actions */}
         <div className="hidden md:flex items-center gap-3">
-          {/* Add session dropdown */}
           <div className="relative" ref={addRef}>
             <button
               type="button"
@@ -139,29 +137,32 @@ export default function Nav() {
         </button>
       </div>
 
-      {/* Mobile slide-over menu */}
+      {/* Mobile drawer */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-[70]">
-          {/* Solid, blurred backdrop */}
-          <button
-            aria-label="Close menu"
-            className="absolute inset-0 bg-black/70 backdrop-blur-sm"
+        <div className="md:hidden fixed inset-0 z-[100]">
+          {/* backdrop */}
+          <div
+            className="absolute inset-0 bg-black/75 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
+            aria-hidden="true"
           />
 
-          {/* Solid panel */}
-          <aside className="absolute right-0 top-0 h-full w-80 max-w-[88%] bg-black shadow-2xl border-l border-white/10 flex flex-col">
-            {/* Sticky header inside drawer */}
-            <div className="sticky top-0 z-10 bg-black border-b border-white/10 p-4 flex items-center justify-between">
+          {/* panel */}
+          <aside className="absolute right-0 top-0 h-full w-[85%] max-w-[22rem] bg-black shadow-2xl border-l border-white/10 flex flex-col">
+            {/* sticky header with safe-area padding */}
+            <div
+              className="sticky top-0 z-10 bg-black border-b border-white/10 flex items-center justify-between px-4 pb-3"
+              style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}
+            >
               <span className="font-semibold">Menu</span>
               <button className="toggle" onClick={() => setMobileOpen(false)} aria-label="Close">
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            {/* Scrollable body */}
+            {/* body */}
             <div className="p-4 overflow-y-auto flex-1">
-              <div className="text-white/60 text-xs mb-1">Quick add</div>
+              <div className="text-white/60 text-xs mb-2">Quick add</div>
               <Link href="/workouts/new" onClick={() => setMobileOpen(false)} className="btn w-full">
                 Workout
               </Link>
@@ -169,7 +170,7 @@ export default function Nav() {
                 Jiu Jitsu
               </Link>
 
-              <div className="text-white/60 text-xs mt-5 mb-1">Navigation</div>
+              <div className="text-white/60 text-xs mt-6 mb-2">Navigation</div>
               <Link href="/history" onClick={() => setMobileOpen(false)} className="toggle w-full">
                 <History className="w-4 h-4" /> History
               </Link>
@@ -181,10 +182,7 @@ export default function Nav() {
               </Link>
 
               <button
-                onClick={async () => {
-                  setMobileOpen(false)
-                  await signOut()
-                }}
+                onClick={async () => { setMobileOpen(false); await signOut(); }}
                 className="toggle w-full mt-6"
               >
                 <LogOut className="w-4 h-4" /> Sign out
