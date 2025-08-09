@@ -4,6 +4,7 @@ import Nav from '@/components/Nav'
 import SetRow from '@/components/SetRow'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { DEMO } from '@/lib/activeUser'
 import { savePendingWorkout, trySyncPending } from '@/lib/offline'
 import { useRouter } from 'next/navigation'
 
@@ -46,7 +47,7 @@ export default function NewWorkoutPage() {
   useEffect(() => {
     ;(async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { window.location.href = '/login'; return }
+      if (!user && !DEMO) { window.location.href = '/login'; return }
 
       await trySyncPending(user.id)
 

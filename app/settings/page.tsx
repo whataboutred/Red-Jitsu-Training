@@ -3,6 +3,7 @@
 import Nav from '@/components/Nav'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { DEMO } from '@/lib/activeUser'
 
 type Profile = {
   unit: 'lb'|'kg'|null
@@ -26,7 +27,7 @@ export default function SettingsPage(){
 
   useEffect(()=>{(async()=>{
     const { data:{ user } } = await supabase.auth.getUser()
-    if(!user){ window.location.href='/login'; return }
+    if(!user && !DEMO){ window.location.href='/login'; return }
 
     const { data: p } = await supabase
       .from('profiles')

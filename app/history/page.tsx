@@ -4,6 +4,7 @@ import Nav from '@/components/Nav'
 import Link from 'next/link'
 import { Suspense, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { DEMO } from '@/lib/activeUser'
 import { useSearchParams } from 'next/navigation'
 
 type Workout = { id:string; performed_at:string; title:string|null }
@@ -31,7 +32,7 @@ function HistoryClient(){
 
   useEffect(()=>{(async()=>{
     const { data:{ user } } = await supabase.auth.getUser()
-    if(!user){ window.location.href='/login'; return }
+    if(!user && !DEMO){ window.location.href='/login'; return }
 
     const { data: w } = await supabase
       .from('workouts')

@@ -4,6 +4,7 @@ import Nav from '@/components/Nav'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { DEMO } from '@/lib/activeUser'
 
 type Workout = { id: string; performed_at: string; title: string | null }
 type BJJ = {
@@ -45,7 +46,9 @@ export default function Dashboard() {
         data: { user },
       } = await supabase.auth.getUser()
       if (!user) {
-        window.location.href = '/login'
+        if (!DEMO) {
+          window.location.href = '/login'
+        }
         return
       }
 

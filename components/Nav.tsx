@@ -15,6 +15,7 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
+import { DEMO } from '@/lib/activeUser'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 
@@ -138,7 +139,9 @@ export default function Nav() {
 
   async function signOut() {
     await supabase.auth.signOut()
-    router.push('/login')
+    if (!DEMO) {
+      router.push('/login')
+    }
   }
 
   return (

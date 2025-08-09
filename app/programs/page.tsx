@@ -3,6 +3,7 @@
 import Nav from '@/components/Nav'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { DEMO } from '@/lib/activeUser'
 
 type Exercise = {
   id: string

@@ -3,6 +3,7 @@
 import Nav from '@/components/Nav'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { DEMO } from '@/lib/activeUser'
 import { useRouter } from 'next/navigation'
 
 type Kind = 'Class' | 'Drilling' | 'Open Mat'
@@ -28,7 +29,7 @@ export default function JiuJitsuPage() {
   useEffect(() => {
     ;(async () => {
       const { data: { user } } = await supabase.auth.getUser()
-      if (!user) { window.location.href = '/login' }
+      if (!user && !DEMO) { window.location.href = '/login' }
     })()
   }, [])
 
