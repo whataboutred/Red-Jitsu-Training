@@ -15,9 +15,25 @@ import {
 } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
 import { useRouter } from 'next/navigation'
-import { DEMO } from '@/lib/activeUser'
+import { DEMO, isDemoVisitor } from '@/lib/activeUser'
 import { useEffect, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
+
+function DemoBadge() {
+  const [isDemo, setIsDemo] = useState(false)
+
+  useEffect(() => {
+    isDemoVisitor().then(demo => setIsDemo(demo))
+  }, [])
+
+  if (!isDemo) return null
+
+  return (
+    <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">
+      demo
+    </span>
+  )
+}
 
 function MobileMenu({
   onClose,
@@ -158,11 +174,8 @@ export default function Nav() {
             priority
           />
           <span className="font-semibold">Red Jitsu Training</span>
-          {DEMO && (
-            <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-white/10 text-white/70">
-              demo
-            </span>
-          )}
+          {/* Only show demo badge for actual demo visitors who aren't logged in */}
+          <DemoBadge />
         </Link>
 
         {/* Desktop actions */}
