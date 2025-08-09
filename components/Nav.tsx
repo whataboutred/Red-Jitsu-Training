@@ -29,7 +29,6 @@ export default function Nav() {
     }
   }, [])
 
-  // close desktop dropdown / mobile drawer on outside click + ESC
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!addRef.current) return
@@ -57,10 +56,9 @@ export default function Nav() {
   return (
     <nav className="sticky top-0 z-50 bg-black/40 backdrop-blur border-b border-white/10">
       <div className="max-w-4xl mx-auto flex items-center justify-between p-3">
-        {/* Brand */}
         <Link href="/dashboard" className="flex items-center gap-2">
           <Image
-            src="/red-jitsu-logo.png?v=6"
+            src="/red-jitsu-logo.png?v=10"
             alt="Red Jitsu Training"
             width={28}
             height={28}
@@ -138,21 +136,20 @@ export default function Nav() {
         </button>
       </div>
 
-      {/* Mobile drawer */}
+      {/* Mobile slide-over (opaque) */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-[200]">
-          {/* Backdrop */}
+        <div className="md:hidden fixed inset-0 z-[999]">
+          {/* dim backdrop */}
           <div
-            className="fixed inset-0 bg-black/75 backdrop-blur-sm"
+            className="absolute inset-0 bg-black/75 backdrop-blur-sm"
             onClick={() => setMobileOpen(false)}
             aria-hidden="true"
           />
-
-          {/* Panel (fixed + min-h-0 ensures the scroll area renders on iOS) */}
-          <aside className="fixed right-0 top-0 h-full w-[88%] max-w-[22rem] bg-black shadow-2xl border-l border-white/10 flex flex-col min-h-0">
-            {/* Sticky header with safe-area padding */}
+          {/* solid panel */}
+          <aside className="absolute right-0 top-0 bottom-0 w-[86%] max-w-[22rem] bg-black text-white shadow-2xl border-l border-white/10 flex flex-col">
+            {/* header */}
             <div
-              className="sticky top-0 z-10 bg-black border-b border-white/10 flex items-center justify-between px-4 pb-3"
+              className="flex items-center justify-between px-4 pb-3 border-b border-white/10"
               style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}
             >
               <span className="font-semibold">Menu</span>
@@ -161,8 +158,8 @@ export default function Nav() {
               </button>
             </div>
 
-            {/* Scrollable body */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-4">
+            {/* body */}
+            <div className="flex-1 overflow-y-auto p-4">
               <div className="text-white/60 text-xs mb-2">Quick add</div>
               <Link href="/workouts/new" onClick={() => setMobileOpen(false)} className="btn w-full">
                 Workout
