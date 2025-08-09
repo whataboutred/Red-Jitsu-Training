@@ -3,14 +3,33 @@
 import Nav from '@/components/Nav'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { DEMO, getActiveUserId } from '@/lib/activeUser'
+import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
+import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 
 type Kind = 'Class' | 'Drilling' | 'Open Mat'
 type Intensity = 'low' | 'medium' | 'high'
 
 export default function JiuJitsuPage() {
+  const [demo, setDemo] = useState(false)
   const router = useRouter()
+
+  useEffect(() => {
+    // detect demo visitor client-side
+    ;(async () => setDemo(await isDemoVisitor()))()
+  }, [])
+
+  if (demo) {
+    return (
+      <div className="p-4 max-w-xl mx-auto">
+        <h1 className="text-xl font-semibold mb-2">Demo mode</h1>
+        <p className="text-white/70">
+          You're viewing the app in read-only demo mode. To log your own
+          sessions, please <Link href="/login" className="underline">sign in</Link>.
+        </p>
+      </div>
+    )
+  }
 
   // default local datetime for backdating
   const [performedAt, setPerformedAt] = useState<string>(() => {

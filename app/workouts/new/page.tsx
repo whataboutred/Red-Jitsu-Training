@@ -4,7 +4,8 @@ import Nav from '@/components/Nav'
 import SetRow from '@/components/SetRow'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { DEMO, getActiveUserId } from '@/lib/activeUser'
+import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
+import Link from 'next/link'
 import { savePendingWorkout, trySyncPending } from '@/lib/offline'
 import { useRouter } from 'next/navigation'
 
@@ -43,6 +44,24 @@ export default function NewWorkoutPage() {
   const [selectedDayId, setSelectedDayId] = useState<string>('')
 
   const router = useRouter()
+  const [demo, setDemo] = useState(false)
+
+  useEffect(() => {
+    // detect demo visitor client-side
+    ;(async () => setDemo(await isDemoVisitor()))()
+  }, [])
+
+  if (demo) {
+    return (
+      <div className="p-4 max-w-xl mx-auto">
+        <h1 className="text-xl font-semibold mb-2">Demo mode</h1>
+        <p className="text-white/70">
+          You're viewing the app in read-only demo mode. To log your own
+          sessions, please <Link href="/login" className="underline">sign in</Link>.
+        </p>
+      </div>
+    )
+  }
 
   useEffect(() => {
     ;(async () => {
