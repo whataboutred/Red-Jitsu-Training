@@ -3,7 +3,7 @@
 import Nav from '@/components/Nav'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { DEMO } from '@/lib/activeUser'
+import { DEMO, getActiveUserId } from '@/lib/activeUser'
 
 type Exercise = {
   id: string
@@ -192,8 +192,11 @@ export default function ProgramsPage(){
         }
       }
     } else {
+      const userId = await getActiveUserId()
+      if (!userId) return
+      
       const { data: prog } = await supabase.from('programs').insert({
-        user_id: user.id, name: pName || 'Program', is_active: programs.length===0
+        user_id: userId, name: pName || 'Program', is_active: programs.length===0
       }).select('id').single()
       if(!prog) return
 

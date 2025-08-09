@@ -4,7 +4,7 @@ import Nav from '@/components/Nav'
 import SetRow from '@/components/SetRow'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { DEMO } from '@/lib/activeUser'
+import { DEMO, getActiveUserId } from '@/lib/activeUser'
 import { savePendingWorkout, trySyncPending } from '@/lib/offline'
 import { useRouter } from 'next/navigation'
 
@@ -48,10 +48,13 @@ export default function NewWorkoutPage() {
     ;(async () => {
       const { data: { user } } = await supabase.auth.getUser()
       if (!user && !DEMO) { window.location.href = '/login'; return }
+      
+      const userId = await getActiveUserId()
+      if (!userId) return
 
-      await trySyncPending(user.id)
+      await trySyncPending(userId)
 
-      const { data: profile } = await supabase.from('profiles').select('unit').eq('id', user.id).maybeSingle()
+      const { data: profile } = await supabase.from('profiles').select('unit').eq('id', userId).maybeSingle()
       if (profile?.unit) setUnit(profile.unit as 'lb'|'kg')
 
       const { data: ex } = await supabase.from('exercises').select('id,name,category').order('name')
@@ -91,11 +94,11 @@ export default function NewWorkoutPage() {
   async function addCustomExercise(){
     const name = search.trim()
     if(!name){ alert('Type a name first.'); return }
-    const { data:{ user } } = await supabase.auth.getUser()
-    if(!user){ window.location.href='/login'; return }
+    const userId = await getActiveUserId()
+    if(!userId){ window.location.href='/login'; return }
     const { data: ins, error } = await supabase
       .from('exercises')
-      .insert({ name, category:'other', is_global:false, owner:user.id })
+      .insert({ name, category:'other', is_global:false, owner:userId })
       .select('id,name,category')
       .single()
     if(error || !ins){ alert('Could not create exercise.'); return }
@@ -154,14 +157,15 @@ export default function NewWorkoutPage() {
 
   async function saveOnline() {
     const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { alert('Sign in again.'); return }
+    const userId = await getActiveUserId()
+    if (!userId) { alert('Sign in again.'); return }
 
     const title = resolveTitle()
     const iso = performedAt ? toISO(performedAt) : new Date().toISOString()
 
     const { data: w, error } = await supabase
       .from('workouts')
-      .insert({ user_id: user.id, performed_at: iso, title, note: note || null })
+      .insert({ user_id: userId, performed_at: iso, title, note: note || null })
       .select('id')
       .single()
     if (error || !w) { alert('Save failed'); return }

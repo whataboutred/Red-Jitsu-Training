@@ -4,7 +4,7 @@ import Nav from '@/components/Nav'
 import Link from 'next/link'
 import { Suspense, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { DEMO } from '@/lib/activeUser'
+import { DEMO, getActiveUserId } from '@/lib/activeUser'
 import { useSearchParams } from 'next/navigation'
 
 type Workout = { id:string; performed_at:string; title:string|null }

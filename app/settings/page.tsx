@@ -3,7 +3,7 @@
 import Nav from '@/components/Nav'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { DEMO } from '@/lib/activeUser'
+import { DEMO, getActiveUserId } from '@/lib/activeUser'
 
 type Profile = {
   unit: 'lb'|'kg'|null

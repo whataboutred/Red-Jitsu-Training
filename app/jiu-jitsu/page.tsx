@@ -3,7 +3,7 @@
 import Nav from '@/components/Nav'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { DEMO } from '@/lib/activeUser'
+import { DEMO, getActiveUserId } from '@/lib/activeUser'
 import { useRouter } from 'next/navigation'
 
 type Kind = 'Class' | 'Drilling' | 'Open Mat'
@@ -38,14 +38,14 @@ export default function JiuJitsuPage() {
   }
 
   async function save() {
-    const { data: { user } } = await supabase.auth.getUser()
-    if (!user) { alert('Please sign in again.'); return }
+    const userId = await getActiveUserId()
+    if (!userId) { alert('Please sign in again.'); return }
 
     const minutes = Math.min(600, Math.max(5, Number(duration || 60)))
     const { error } = await supabase
       .from('bjj_sessions')
       .insert({
-        user_id: user.id,
+        user_id: userId,
         performed_at: toISO(performedAt),
         kind: kind === 'Open Mat' ? 'open_mat' : (kind.toLowerCase()),
         duration_min: minutes,
