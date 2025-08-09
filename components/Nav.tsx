@@ -19,8 +19,8 @@ import { useEffect, useRef, useState } from 'react'
 
 export default function Nav() {
   const router = useRouter()
-  const [addOpen, setAddOpen] = useState(false)        // desktop add-session
-  const [mobileOpen, setMobileOpen] = useState(false)  // mobile drawer
+  const [addOpen, setAddOpen] = useState(false)       // desktop add-session
+  const [mobileOpen, setMobileOpen] = useState(false) // mobile overlay
   const addRef = useRef<HTMLDivElement | null>(null)
 
   useEffect(() => {
@@ -56,9 +56,10 @@ export default function Nav() {
   return (
     <nav className="sticky top-0 z-50 bg-black/40 backdrop-blur border-b border-white/10">
       <div className="max-w-4xl mx-auto flex items-center justify-between p-3">
+        {/* Brand */}
         <Link href="/dashboard" className="flex items-center gap-2">
           <Image
-            src="/red-jitsu-logo.png?v=11"
+            src="/red-jitsu-logo.png?v=13"
             alt="Red Jitsu Training"
             width={28}
             height={28}
@@ -136,64 +137,63 @@ export default function Nav() {
         </button>
       </div>
 
-      {/* Mobile slide-over (opaque, simple classes) */}
+      {/* Mobile FULL-SCREEN menu (opaque) */}
       {mobileOpen && (
-        <div className="md:hidden fixed inset-0 z-[999]">
-          {/* backdrop */}
+        <div className="md:hidden fixed inset-0 z-[9999] bg-black text-white">
+          {/* header */}
           <div
-            className="absolute inset-0 bg-black/75"
-            onClick={() => setMobileOpen(false)}
-            aria-hidden="true"
-          />
-          {/* panel */}
-          <aside className="absolute right-0 top-0 bottom-0 w-[86%] max-w-[22rem] bg-black text-white shadow-2xl border-l border-white/10 flex flex-col">
-            {/* header */}
-            <div
-              className="flex items-center justify-between px-4 pb-3 border-b border-white/10"
-              style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}
+            className="flex items-center justify-between px-4 pb-3 border-b border-white/10"
+            style={{ paddingTop: 'max(env(safe-area-inset-top), 14px)' }}
+          >
+            <span className="font-semibold">Menu</span>
+            <button
+              className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80"
+              onClick={() => setMobileOpen(false)}
+              aria-label="Close"
             >
-              <span className="font-semibold">Menu</span>
-              <button
-                className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80"
-                onClick={() => setMobileOpen(false)}
-                aria-label="Close"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
+              <X className="w-5 h-5" />
+            </button>
+          </div>
 
-            {/* body */}
-            <nav className="flex-1 overflow-y-auto p-4 space-y-2">
-              <div className="text-white/60 text-xs">Quick add</div>
-              <Link href="/workouts/new" onClick={() => setMobileOpen(false)}
-                    className="block rounded-xl bg-red-600 hover:bg-red-700 px-4 py-3 text-center font-medium">
-                Workout
-              </Link>
-              <Link href="/jiu-jitsu" onClick={() => setMobileOpen(false)}
-                    className="block rounded-xl border border-white/10 px-4 py-3 text-center">
-                Jiu Jitsu
-              </Link>
+          {/* body */}
+          <div className="p-4 space-y-3 overflow-y-auto" style={{ maxHeight: 'calc(100vh - 70px)' }}>
+            <div className="text-white/60 text-xs">Quick add</div>
+            <Link
+              href="/workouts/new"
+              onClick={() => setMobileOpen(false)}
+              className="block rounded-xl bg-red-600 hover:bg-red-700 px-4 py-3 text-center font-medium"
+            >
+              Workout
+            </Link>
+            <Link
+              href="/jiu-jitsu"
+              onClick={() => setMobileOpen(false)}
+              className="block rounded-xl border border-white/10 px-4 py-3 text-center"
+            >
+              Jiu Jitsu
+            </Link>
 
-              <div className="text-white/60 text-xs pt-4">Navigation</div>
-              <Link href="/history" onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
-                <History className="w-4 h-4" /> History
-              </Link>
-              <Link href="/programs" onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
-                <ListChecks className="w-4 h-4" /> Programs
-              </Link>
-              <Link href="/settings" onClick={() => setMobileOpen(false)}
-                    className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
-                <Settings className="w-4 h-4" /> Settings
-              </Link>
+            <div className="text-white/60 text-xs pt-3">Navigation</div>
+            <Link href="/history" onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
+              <History className="w-4 h-4" /> History
+            </Link>
+            <Link href="/programs" onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
+              <ListChecks className="w-4 h-4" /> Programs
+            </Link>
+            <Link href="/settings" onClick={() => setMobileOpen(false)}
+                  className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
+              <Settings className="w-4 h-4" /> Settings
+            </Link>
 
-              <button onClick={async () => { setMobileOpen(false); await signOut(); }}
-                      className="mt-4 w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3">
-                <LogOut className="w-4 h-4" /> Sign out
-              </button>
-            </nav>
-          </aside>
+            <button
+              onClick={async () => { setMobileOpen(false); await signOut(); }}
+              className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3"
+            >
+              <LogOut className="w-4 h-4" /> Sign out
+            </button>
+          </div>
         </div>
       )}
     </nav>
