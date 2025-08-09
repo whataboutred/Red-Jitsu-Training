@@ -91,6 +91,14 @@ function MobileMenu({
             <Settings className="w-4 h-4" /> Settings
           </Link>
 
+          <div className="text-white/60 text-xs pt-3">Legal</div>
+          <Link href="/legal/privacy" onClick={onClose} className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
+            Privacy
+          </Link>
+          <Link href="/legal/terms" onClick={onClose} className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
+            Terms
+          </Link>
+
           <button
             onClick={async () => { onClose(); await signOut() }}
             className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3"
@@ -220,6 +228,12 @@ export default function Nav() {
           </Link>
           <Link href="/settings" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
             <Settings className="w-4 h-4" /> Settings
+          </Link>
+          <Link href="/legal/privacy" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
+            Privacy
+          </Link>
+          <Link href="/legal/terms" className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5">
+            Terms
           </Link>
           <button onClick={signOut} className="inline-flex items-center gap-2 rounded-xl border border-white/10 px-3 py-2 text-sm text-white/80 hover:bg-white/5" title="Sign out">
             <LogOut className="w-4 h-4" />
