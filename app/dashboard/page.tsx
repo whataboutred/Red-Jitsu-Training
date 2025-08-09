@@ -3,6 +3,7 @@
 import Nav from '@/components/Nav'
 import Disclaimer from '@/components/Disclaimer'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId } from '@/lib/activeUser'
@@ -173,7 +174,20 @@ export default function Dashboard() {
     )
 
   return (
-    <div>
+    <div className="relative min-h-screen">
+      {/* Background Logo */}
+      <div className="fixed inset-0 flex items-center justify-center pointer-events-none" style={{ zIndex: -1 }}>
+        <div className="relative w-[600px] h-[600px] opacity-[0.03]">
+          <Image
+            src="/red-jitsu-logo.png"
+            alt=""
+            fill
+            style={{ objectFit: 'contain' }}
+            priority
+          />
+        </div>
+      </div>
+      
       <Nav />
       <main className="max-w-4xl mx-auto p-4 space-y-6 pb-24 md:pb-6">
         <div className="flex items-center justify-between">
