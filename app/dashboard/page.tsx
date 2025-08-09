@@ -294,7 +294,7 @@ export default function Dashboard() {
 
         <div className="card text-center">
           “When you want to succeed as bad as you want to breathe then you’ll be
-          successful.”
+          successful.” - Eric Thomas
         </div>
       </main>
 
