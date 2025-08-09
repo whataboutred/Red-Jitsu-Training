@@ -1,5 +1,5 @@
 /* public/sw.js */
-const CACHE = 'rjt-v5'; // bump this to clear old caches
+const CACHE = 'rjt-v10'; // bump to force-refresh clients
 
 self.addEventListener('install', (event) => {
   self.skipWaiting(); // activate immediately
@@ -12,7 +12,7 @@ self.addEventListener('activate', (event) => {
     await Promise.all(keys.map(k => (k === CACHE ? null : caches.delete(k))));
     await self.clients.claim();
 
-    // tell pages a new SW is active (so they can reload)
+    // notify pages that a new SW is active
     const clients = await self.clients.matchAll({ type: 'window' });
     for (const client of clients) {
       client.postMessage({ type: 'SW_UPDATED' });
@@ -20,13 +20,10 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-// Network-first for navigation requests (HTML)
-// Cache-first (with background update) for everything else
+// Network-first for HTML, cache-first for other assets
 self.addEventListener('fetch', (event) => {
   const req = event.request;
   const accept = req.headers.get('accept') || '';
-
-  // Only handle GET
   if (req.method !== 'GET') return;
 
   // HTML/doc requests
@@ -46,7 +43,7 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets: cache first, then update
+  // Static assets
   event.respondWith((async () => {
     const cached = await caches.match(req);
     const fetchAndUpdate = fetch(req).then(async (res) => {
