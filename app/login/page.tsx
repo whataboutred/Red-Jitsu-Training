@@ -2,9 +2,8 @@
 
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
-import { Auth } from '@supabase/auth-ui-react'
-import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/lib/supabaseClient'
+import LoginForm from '@/components/LoginForm'
 
 export default function LoginPage() {
   const router = useRouter()
@@ -34,38 +33,7 @@ export default function LoginPage() {
 
         {/* Auth card */}
         <div className="card p-4">
-          <Auth
-            supabaseClient={supabase}
-            providers={[]}
-            theme="dark"
-            appearance={{
-              theme: ThemeSupa,
-              variables: {
-                default: {
-                  colors: {
-                    brand: '#ef4444',
-                    brandAccent: '#b91c1c',
-                    inputText: 'white',
-                    inputBackground: 'rgba(0,0,0,0.35)',
-                    inputBorder: 'rgba(255,255,255,0.12)',
-                    messageText: 'white',
-                  },
-                  radii: {
-                    inputBorderRadius: '12px',
-                    buttonBorderRadius: '12px',
-                  },
-                },
-              },
-              className: {
-                container: 'space-y-3',
-                input: 'text-white placeholder-white/60 bg-black/40 border-white/20',
-                label: 'text-white/80',
-                button: 'bg-red-600 hover:bg-red-700 focus:ring-2 focus:ring-red-500/40 text-white',
-                anchor: 'text-red-400 hover:text-red-300',
-                loader: 'text-white',
-              },
-            }}
-          />
+          <LoginForm />
         </div>
       </div>
     </div>
