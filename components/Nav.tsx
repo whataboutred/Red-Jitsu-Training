@@ -35,11 +35,7 @@ function MobileMenu({
   return createPortal(
     <div className="fixed inset-0 z-[100000]">
       {/* Solid, opaque background that fully covers the app */}
-      <div
-        className="absolute inset-0 bg-black"
-        onClick={onClose}
-        aria-hidden="true"
-      />
+      <div className="absolute inset-0 bg-black" onClick={onClose} aria-hidden="true" />
       {/* Content layer */}
       <div className="absolute inset-0 text-white flex flex-col">
         {/* Header */}
@@ -60,49 +56,26 @@ function MobileMenu({
         {/* Body */}
         <div className="p-4 space-y-3 overflow-y-auto flex-1">
           <div className="text-white/60 text-xs">Quick add</div>
-          <Link
-            href="/workouts/new"
-            onClick={onClose}
-            className="block rounded-xl bg-red-600 hover:bg-red-700 px-4 py-3 text-center font-medium"
-          >
+          <Link href="/workouts/new" onClick={onClose} className="block rounded-xl bg-red-600 hover:bg-red-700 px-4 py-3 text-center font-medium">
             Workout
           </Link>
-          <Link
-            href="/jiu-jitsu"
-            onClick={onClose}
-            className="block rounded-xl border border-white/10 px-4 py-3 text-center"
-          >
+          <Link href="/jiu-jitsu" onClick={onClose} className="block rounded-xl border border-white/10 px-4 py-3 text-center">
             Jiu Jitsu
           </Link>
 
           <div className="text-white/60 text-xs pt-3">Navigation</div>
-          <Link
-            href="/history"
-            onClick={onClose}
-            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3"
-          >
+          <Link href="/history" onClick={onClose} className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
             <History className="w-4 h-4" /> History
           </Link>
-          <Link
-            href="/programs"
-            onClick={onClose}
-            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3"
-          >
+          <Link href="/programs" onClick={onClose} className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
             <ListChecks className="w-4 h-4" /> Programs
           </Link>
-          <Link
-            href="/settings"
-            onClick={onClose}
-            className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3"
-          >
+          <Link href="/settings" onClick={onClose} className="flex items-center gap-2 rounded-xl border border-white/10 px-4 py-3">
             <Settings className="w-4 h-4" /> Settings
           </Link>
 
           <button
-            onClick={async () => {
-              onClose()
-              await signOut()
-            }}
+            onClick={async () => { onClose(); await signOut() }}
             className="mt-2 w-full flex items-center justify-center gap-2 rounded-xl border border-white/10 px-4 py-3"
           >
             <LogOut className="w-4 h-4" /> Sign out
@@ -120,12 +93,30 @@ export default function Nav() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const addRef = useRef<HTMLDivElement | null>(null)
 
+  // Register SW + auto-update + auto-reload when new code is active
   useEffect(() => {
-    if ('serviceWorker' in navigator) {
-      navigator.serviceWorker.register('/sw.js').catch(() => {})
+    if ('serviceWorker' in navigator && process.env.NEXT_PUBLIC_SW !== 'off') {
+      navigator.serviceWorker.register('/sw.js').then((reg) => {
+        // Check now and every 5 minutes
+        reg.update()
+        const id = setInterval(() => reg.update(), 5 * 60 * 1000)
+
+        // Reload as soon as the new worker activates
+        navigator.serviceWorker.addEventListener('message', (e) => {
+          if (e.data?.type === 'SW_UPDATED') {
+            window.location.reload()
+          }
+        })
+        navigator.serviceWorker.addEventListener('controllerchange', () => {
+          window.location.reload()
+        })
+
+        return () => clearInterval(id)
+      }).catch(() => {})
     }
   }, [])
 
+  // Close desktop dropdown on outside click / Esc
   useEffect(() => {
     function onDocClick(e: MouseEvent) {
       if (!addRef.current) return
@@ -156,7 +147,7 @@ export default function Nav() {
         {/* Brand */}
         <Link href="/dashboard" className="flex items-center gap-2">
           <Image
-            src="/red-jitsu-logo.png?v=14"
+            src="/red-jitsu-logo.png?v=15"
             alt="Red Jitsu Training"
             width={28}
             height={28}
@@ -185,19 +176,11 @@ export default function Nav() {
                 role="menu"
                 className="absolute right-0 top-full mt-2 w-56 rounded-xl border border-white/10 bg-black/90 shadow-xl p-2 z-50"
               >
-                <Link
-                  href="/workouts/new"
-                  onClick={() => setAddOpen(false)}
-                  className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-white/5"
-                >
+                <Link href="/workouts/new" onClick={() => setAddOpen(false)} className="flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-white/5">
                   <Dumbbell className="w-4 h-4" />
                   Strength workout
                 </Link>
-                <Link
-                  href="/jiu-jitsu"
-                  onClick={() => setAddOpen(false)}
-                  className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-white/5"
-                >
+                <Link href="/jiu-jitsu" onClick={() => setAddOpen(false)} className="mt-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm hover:bg-white/5">
                   <Activity className="w-4 h-4" />
                   Jiu Jitsu session
                 </Link>
@@ -234,10 +217,7 @@ export default function Nav() {
 
       {/* Mobile menu (portal) */}
       {mobileOpen && (
-        <MobileMenu
-          onClose={() => setMobileOpen(false)}
-          signOut={signOut}
-        />
+        <MobileMenu onClose={() => setMobileOpen(false)} signOut={signOut} />
       )}
     </nav>
   )

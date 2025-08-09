@@ -1,18 +1,20 @@
 /* public/sw.js */
-const CACHE = 'rjt-v10'; // bump to force-refresh clients
+// Bump this to force clients to fetch the latest assets
+const CACHE = 'rjt-v15';
 
-self.addEventListener('install', (event) => {
-  self.skipWaiting(); // activate immediately
+self.addEventListener('install', () => {
+  // Take control immediately
+  self.skipWaiting();
 });
 
 self.addEventListener('activate', (event) => {
   event.waitUntil((async () => {
-    // delete old caches
+    // Purge old caches
     const keys = await caches.keys();
     await Promise.all(keys.map(k => (k === CACHE ? null : caches.delete(k))));
+    // Control all open tabs
     await self.clients.claim();
-
-    // notify pages that a new SW is active
+    // Tell pages a new SW is active (our app will reload)
     const clients = await self.clients.matchAll({ type: 'window' });
     for (const client of clients) {
       client.postMessage({ type: 'SW_UPDATED' });
@@ -20,13 +22,17 @@ self.addEventListener('activate', (event) => {
   })());
 });
 
-// Network-first for HTML, cache-first for other assets
+// Network-first for HTML, don't hijack Next.js chunks, cache-first for other files
 self.addEventListener('fetch', (event) => {
   const req = event.request;
+  const url = new URL(req.url);
   const accept = req.headers.get('accept') || '';
   if (req.method !== 'GET') return;
 
-  // HTML/doc requests
+  // Let the browser handle Next's hashed assets completely (safer, no staleness)
+  if (url.pathname.startsWith('/_next/')) return;
+
+  // HTML/doc requests: network-first, fallback to cache if offline
   if (accept.includes('text/html')) {
     event.respondWith((async () => {
       try {
@@ -43,13 +49,15 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Static assets
+  // Static assets: cache-first, then update in background
   event.respondWith((async () => {
     const cached = await caches.match(req);
     const fetchAndUpdate = fetch(req).then(async (res) => {
-      const copy = res.clone();
-      const cache = await caches.open(CACHE);
-      cache.put(req, copy);
+      try {
+        const copy = res.clone();
+        const cache = await caches.open(CACHE);
+        cache.put(req, copy);
+      } catch {}
       return res;
     }).catch(() => cached);
     return cached || fetchAndUpdate;
