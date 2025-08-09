@@ -1,13 +1,13 @@
 'use client'
 
-import { useEffect, useState } from 'react'
+import { Suspense, useEffect, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabaseClient'
 
 type Step = 'checking' | 'ready' | 'saving' | 'done' | 'error'
 
-export default function ResetPasswordPage() {
+function ResetPasswordForm() {
   const searchParams = useSearchParams()
   const [step, setStep] = useState<Step>('checking')
   const [error, setError] = useState<string>('')
@@ -142,5 +142,18 @@ export default function ResetPasswordPage() {
         </div>
       </form>
     </div>
+  )
+}
+
+export default function ResetPasswordPage() {
+  return (
+    <Suspense fallback={
+      <div className="max-w-md mx-auto p-6">
+        <h1 className="text-lg font-semibold mb-2">Loading...</h1>
+        <p className="text-white/70 text-sm">Please wait.</p>
+      </div>
+    }>
+      <ResetPasswordForm />
+    </Suspense>
   )
 }
