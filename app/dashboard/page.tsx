@@ -4,7 +4,7 @@ import Nav from '@/components/Nav'
 import Link from 'next/link'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
-import { DEMO } from '@/lib/activeUser'
+import { DEMO, getActiveUserId } from '@/lib/activeUser'
 
 type Workout = { id: string; performed_at: string; title: string | null }
 type BJJ = {
@@ -42,20 +42,19 @@ export default function Dashboard() {
 
   useEffect(() => {
     ;(async () => {
-      const {
-        data: { user },
-      } = await supabase.auth.getUser()
-      if (!user) {
+      const userId = await getActiveUserId()
+      if (!userId) {
         if (!DEMO) {
           window.location.href = '/login'
         }
+        setLoading(false)
         return
       }
 
       const { data: prof } = await supabase
         .from('profiles')
         .select('weekly_goal,target_weeks,goal_start,bjj_weekly_goal')
-        .eq('id', user.id)
+        .eq('id', userId)
         .maybeSingle()
       if (prof) {
         setWeeklyGoal(prof.weekly_goal ?? 4)
@@ -67,6 +66,7 @@ export default function Dashboard() {
       const { data: w } = await supabase
         .from('workouts')
         .select('id,performed_at,title')
+        .eq('user_id', userId)
         .order('performed_at', { ascending: false })
         .limit(1000)
       setWorkouts((w || []) as Workout[])
@@ -74,6 +74,7 @@ export default function Dashboard() {
       const { data: bj } = await supabase
         .from('bjj_sessions')
         .select('id,performed_at,duration_min,kind')
+        .eq('user_id', userId)
         .order('performed_at', { ascending: false })
         .limit(1000)
       setBjj((bj || []) as BJJ[])

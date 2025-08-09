@@ -21,12 +21,15 @@ export default function JiuJitsuPage() {
 
   if (demo) {
     return (
-      <div className="p-4 max-w-xl mx-auto">
-        <h1 className="text-xl font-semibold mb-2">Demo mode</h1>
-        <p className="text-white/70">
-          You're viewing the app in read-only demo mode. To log your own
-          sessions, please <Link href="/login" className="underline">sign in</Link>.
-        </p>
+      <div>
+        <Nav />
+        <main className="p-4 max-w-xl mx-auto">
+          <h1 className="text-xl font-semibold mb-2">Demo mode</h1>
+          <p className="text-white/70">
+            You're viewing the app in read-only demo mode. To log your own
+            sessions, please <Link href="/login" className="underline">sign in</Link>.
+          </p>
+        </main>
       </div>
     )
   }
