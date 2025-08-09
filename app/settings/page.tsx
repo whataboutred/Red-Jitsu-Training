@@ -26,13 +26,13 @@ export default function SettingsPage(){
   const [bjjWeeklyGoal, setBjjWeeklyGoal] = useState<number>(2)
 
   useEffect(()=>{(async()=>{
-    const { data:{ user } } = await supabase.auth.getUser()
-    if(!user && !DEMO){ window.location.href='/login'; return }
+    const userId = await getActiveUserId()
+    if(!userId){ window.location.href='/login'; return }
 
     const { data: p } = await supabase
       .from('profiles')
       .select('unit,weekly_goal,target_weeks,goal_start,bjj_weekly_goal')
-      .eq('id', user.id)
+      .eq('id', userId)
       .maybeSingle()
 
     if (p) {
@@ -46,15 +46,15 @@ export default function SettingsPage(){
   })()},[])
 
   async function save(){
-    const { data:{ user } } = await supabase.auth.getUser()
-    if(!user){ return }
+    const userId = await getActiveUserId()
+    if(!userId){ return }
     await supabase.from('profiles').update({
       unit,
       weekly_goal: Math.min(14, Math.max(1, weeklyGoal||4)),
       target_weeks: targetWeeks === '' ? null : targetWeeks,
       goal_start: goalStart || null,
       bjj_weekly_goal: Math.min(14, Math.max(1, bjjWeeklyGoal||2))
-    }).eq('id', user.id)
+    }).eq('id', userId)
     alert('Saved settings')
   }
 
