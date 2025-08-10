@@ -72,7 +72,10 @@ export default function SettingsPage(){
       }
       
       alert('Settings saved successfully!')
-      router.push('/dashboard') // Redirect to dashboard to refresh goals
+      // Small delay to let alert show, then navigate
+      setTimeout(() => {
+        router.push('/dashboard')
+      }, 500)
     } catch (err) {
       console.error('Save error:', err)
       alert('Failed to save settings')

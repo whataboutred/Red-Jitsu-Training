@@ -1,6 +1,6 @@
 /* public/sw.js */
 // Bump this to force clients to fetch the latest assets
-const CACHE = 'rjt-v25';
+const CACHE = 'rjt-v26';
 
 self.addEventListener('install', (event) => {
   // Take control immediately
@@ -57,25 +57,32 @@ self.addEventListener('fetch', (event) => {
   if (accept.includes('text/html')) {
     event.respondWith((async () => {
       try {
-        // Add cache-busting parameter to force fresh content
-        const freshReq = new Request(req.url + (req.url.includes('?') ? '&' : '?') + '_sw_bust=' + Date.now(), {
-          method: req.method,
-          headers: req.headers,
-          body: req.body,
-          mode: req.mode,
-          credentials: req.credentials,
-          cache: 'no-store', // Force bypass cache
-          redirect: req.redirect
-        });
-        
-        const fresh = await fetch(freshReq);
+        const fresh = await fetch(req);
         const copy = fresh.clone();
         const cache = await caches.open(CACHE);
         cache.put(req, copy);
         return fresh;
-      } catch {
+      } catch (err) {
+        console.log('Network failed, trying cache:', err);
         const cached = await caches.match(req);
-        return cached || new Response('Offline', { status: 503 });
+        if (cached) {
+          return cached;
+        }
+        // Better offline fallback
+        return new Response(`
+          <!DOCTYPE html>
+          <html>
+            <head><title>Offline - Red Jitsu Training</title></head>
+            <body style="font-family: sans-serif; text-align: center; padding: 50px;">
+              <h1>You're offline</h1>
+              <p>Please check your internet connection and try again.</p>
+              <button onclick="window.location.reload()">Retry</button>
+            </body>
+          </html>
+        `, { 
+          status: 200, 
+          headers: { 'Content-Type': 'text/html' }
+        });
       }
     })());
     return;
