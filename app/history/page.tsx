@@ -1,6 +1,7 @@
 'use client'
 
 import Nav from '@/components/Nav'
+import BackgroundLogo from '@/components/BackgroundLogo'
 import Link from 'next/link'
 import { Suspense, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
@@ -16,9 +17,10 @@ export const dynamic = 'force-dynamic' // don’t prerender this page
 
 export default function HistoryPage() {
   return (
-    <div>
+    <div className="relative min-h-screen bg-black">
+      <BackgroundLogo />
       <Nav />
-      <Suspense fallback={<main className="max-w-4xl mx-auto p-4">Loading…</main>}>
+      <Suspense fallback={<main className="relative z-10 max-w-4xl mx-auto p-4">Loading…</main>}>
         <HistoryClient />
       </Suspense>
     </div>
@@ -62,7 +64,7 @@ function HistoryClient(){
   if (loading) return (<main className="max-w-4xl mx-auto p-4">Loading…</main>)
 
   return (
-    <main className="max-w-4xl mx-auto p-4 space-y-6">
+    <main className="relative z-10 max-w-4xl mx-auto p-4 space-y-6">
       <h1 className="text-2xl">History</h1>
       
       {highlightId && highlightType === 'workout' && (

@@ -1,6 +1,7 @@
 'use client'
 
 import Nav from '@/components/Nav'
+import BackgroundLogo from '@/components/BackgroundLogo'
 import SetRow from '@/components/SetRow'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
@@ -218,9 +219,10 @@ export default function NewWorkoutPage() {
   const canSave = useMemo(() => items.some(i => i.sets.length), [items])
 
   return (
-    <div>
+    <div className="relative min-h-screen bg-black">
+      <BackgroundLogo />
       <Nav />
-      <main className="max-w-3xl mx-auto p-4 space-y-4">
+      <main className="relative z-10 max-w-3xl mx-auto p-4 space-y-4">
         <h1 className="text-2xl">New Workout</h1>
 
         {loadedTemplate && (

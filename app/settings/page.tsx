@@ -1,6 +1,7 @@
 'use client'
 
 import Nav from '@/components/Nav'
+import BackgroundLogo from '@/components/BackgroundLogo'
 import DeleteAllData from '@/components/DeleteAllData'
 import { useEffect, useState } from 'react'
 import { useRouter } from 'next/navigation'
@@ -143,9 +144,10 @@ export default function SettingsPage(){
   if (loading) return (<div><Nav/><main className="max-w-3xl mx-auto p-4">Loading…</main></div>)
 
   return (
-    <div>
+    <div className="relative min-h-screen bg-black">
+      <BackgroundLogo />
       <Nav/>
-      <main className="max-w-3xl mx-auto p-4 space-y-6">
+      <main className="relative z-10 max-w-3xl mx-auto p-4 space-y-6">
         <h1 className="text-2xl">Settings</h1>
 
         {/* Units */}

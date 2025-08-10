@@ -1,6 +1,7 @@
 'use client'
 
 import Nav from '@/components/Nav'
+import BackgroundLogo from '@/components/BackgroundLogo'
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
@@ -85,9 +86,10 @@ export default function JiuJitsuPage() {
   }
 
   return (
-    <div>
+    <div className="relative min-h-screen bg-black">
+      <BackgroundLogo />
       <Nav />
-      <main className="max-w-3xl mx-auto p-4 space-y-4">
+      <main className="relative z-10 max-w-3xl mx-auto p-4 space-y-4">
         <h1 className="text-2xl">Jiu Jitsu</h1>
 
         <div className="card space-y-3">
