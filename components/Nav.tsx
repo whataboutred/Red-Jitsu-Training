@@ -126,10 +126,10 @@ export default function Nav() {
         // Force immediate update check
         reg.update()
         
-        // Check for updates more frequently - every 2 minutes
+        // Check for updates every 5 minutes (less aggressive)
         const updateInterval = setInterval(() => {
           reg.update()
-        }, 2 * 60 * 1000)
+        }, 5 * 60 * 1000)
 
         // Also check when app becomes visible (user switches back to tab)
         const handleVisibilityChange = () => {
@@ -139,19 +139,23 @@ export default function Nav() {
         }
         document.addEventListener('visibilitychange', handleVisibilityChange)
 
-        // Reload immediately when new worker activates
+        // Show update notification but don't auto-reload
         navigator.serviceWorker.addEventListener('message', (e) => {
           if (e.data?.type === 'SW_UPDATED') {
-            console.log('New version available, reloading...')
+            console.log('New version available')
             setUpdateAvailable(true)
-            // Small delay to show the update indicator before reload
-            setTimeout(() => window.location.reload(), 1000)
+            // Auto-reload after 5 seconds, giving user time to finish what they're doing
+            setTimeout(() => {
+              if (document.visibilityState === 'visible') {
+                window.location.reload()
+              }
+            }, 5000)
           }
         })
         
         navigator.serviceWorker.addEventListener('controllerchange', () => {
-          console.log('Service worker changed, reloading...')
-          window.location.reload()
+          console.log('Service worker changed')
+          // Don't immediately reload on controller change
         })
 
         // Check if there's an update waiting
