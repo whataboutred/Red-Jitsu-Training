@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { getActiveUserId } from '@/lib/activeUser'
 import { X } from 'lucide-react'
 
 type WorkoutSet = {
@@ -25,11 +26,15 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
 
   useEffect(() => {
     (async () => {
+      const userId = await getActiveUserId()
+      if (!userId) return
+
       // Load workout details
       const { data: w } = await supabase
         .from('workouts')
         .select('performed_at,title')
         .eq('id', workoutId)
+        .eq('user_id', userId)
         .single()
       setWorkout(w as any)
 
@@ -38,6 +43,7 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
         .from('workout_sets')
         .select('id,exercise_id,weight,reps,notes')
         .eq('workout_id', workoutId)
+        .eq('user_id', userId)
         .order('created_at', { ascending: true })
       setSets((s || []) as WorkoutSet[])
 
@@ -57,11 +63,29 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
 
   if (loading) return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="card max-w-lg w-full mx-4">Loading...</div>
+      <div className="card max-w-lg w-full mx-4">
+        <div className="flex items-center justify-between">
+          <div>Loading workout details...</div>
+          <button onClick={onClose} className="p-1 hover:bg-white/5 rounded-lg" title="Close">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
     </div>
   )
 
-  if (!workout) return null
+  if (!workout) return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
+      <div className="card max-w-lg w-full mx-4">
+        <div className="flex items-center justify-between">
+          <div>Workout not found or access denied.</div>
+          <button onClick={onClose} className="p-1 hover:bg-white/5 rounded-lg" title="Close">
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+      </div>
+    </div>
+  )
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80" onClick={onClose}>
