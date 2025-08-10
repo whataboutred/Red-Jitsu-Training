@@ -230,7 +230,7 @@ export default function Nav() {
           <div className="relative" ref={addRef}>
             <button
               type="button"
-              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5"
+              className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-red-500/10 hover:border-red-400/50 transition-all duration-200"
               onClick={() => setAddOpen(v => !v)}
               aria-haspopup="menu"
               aria-expanded={addOpen}
@@ -256,16 +256,16 @@ export default function Nav() {
             )}
           </div>
 
-          <Link href="/history" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
+          <Link href="/history" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-purple-500/10 hover:border-purple-400/50 transition-all duration-200">
             <History className="w-4 h-4" /> History
           </Link>
           <Link href="/programs" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
             <ListChecks className="w-4 h-4" /> Workout Programs
           </Link>
-          <Link href="/jiu-jitsu" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
+          <Link href="/jiu-jitsu" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-blue-500/10 hover:border-blue-400/50 transition-all duration-200">
             <Activity className="w-4 h-4" /> Jiu Jitsu
           </Link>
-          <Link href="/settings" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
+          <Link href="/settings" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-orange-500/10 hover:border-orange-400/50 transition-all duration-200">
             <Settings className="w-4 h-4" /> Settings
           </Link>
           <Link href="/legal/privacy" className="inline-flex items-center gap-1.5 rounded-xl border border-white/10 px-2.5 py-1.5 text-sm text-white/80 hover:bg-white/5">
