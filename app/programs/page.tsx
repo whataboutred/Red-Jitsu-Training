@@ -1,6 +1,7 @@
 'use client'
 
 import Nav from '@/components/Nav'
+import BackgroundLogo from '@/components/BackgroundLogo'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
@@ -259,9 +260,10 @@ export default function ProgramsPage(){
   }
 
   return (
-    <div>
+    <div className="relative min-h-screen bg-black">
+      <BackgroundLogo />
       <Nav/>
-      <main className="max-w-4xl mx-auto p-4 space-y-6">
+      <main className="relative z-10 max-w-4xl mx-auto p-4 space-y-6">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl">Workout Programs</h1>
           <button className="btn" onClick={newProgram}>+ New Program</button>

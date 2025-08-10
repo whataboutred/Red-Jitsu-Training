@@ -1,6 +1,7 @@
 'use client'
 
 import Nav from '@/components/Nav'
+import BackgroundLogo from '@/components/BackgroundLogo'
 import SetRow from '@/components/SetRow'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
@@ -242,9 +243,10 @@ export default function EditWorkoutPage() {
   }
 
   return (
-    <div>
+    <div className="relative min-h-screen bg-black">
+      <BackgroundLogo />
       <Nav />
-      <main className="max-w-3xl mx-auto p-4 space-y-4">
+      <main className="relative z-10 max-w-3xl mx-auto p-4 space-y-4">
         <div className="flex items-center justify-between">
           <h1 className="text-2xl">Edit Workout</h1>
           <Link href="/history" className="toggle">
