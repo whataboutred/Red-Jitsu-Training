@@ -3,7 +3,8 @@
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { getActiveUserId } from '@/lib/activeUser'
-import { X } from 'lucide-react'
+import { X, Edit3, Trash2 } from 'lucide-react'
+import { useRouter } from 'next/navigation'
 
 type WorkoutSet = {
   id: string
@@ -24,6 +25,8 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
   const [sets, setSets] = useState<WorkoutSet[]>([])
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [workout, setWorkout] = useState<{ performed_at: string; title: string | null } | null>(null)
+  const [deleting, setDeleting] = useState(false)
+  const router = useRouter()
 
   useEffect(() => {
     (async () => {
@@ -90,6 +93,44 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
     return acc
   }, {} as Record<string, WorkoutSet[]>)
 
+  async function handleDelete() {
+    if (!confirm('Are you sure you want to delete this workout? This cannot be undone.')) {
+      return
+    }
+
+    setDeleting(true)
+    try {
+      const userId = await getActiveUserId()
+      if (!userId) return
+
+      const { error } = await supabase
+        .from('workouts')
+        .delete()
+        .eq('id', workoutId)
+        .eq('user_id', userId)
+
+      if (error) {
+        alert('Failed to delete workout')
+        console.error('Delete error:', error)
+        return
+      }
+
+      // Close modal and refresh the page
+      onClose()
+      window.location.reload()
+    } catch (error) {
+      alert('Failed to delete workout')
+      console.error('Delete error:', error)
+    } finally {
+      setDeleting(false)
+    }
+  }
+
+  function handleEdit() {
+    // Navigate to edit page with the workout ID
+    router.push(`/workouts/edit/${workoutId}`)
+  }
+
   if (loading) return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
       <div className="card max-w-lg w-full mx-4">
@@ -124,9 +165,26 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
             <div className="font-medium">{workout.title || 'Untitled workout'}</div>
             <div className="text-sm text-white/70">{new Date(workout.performed_at).toLocaleString()}</div>
           </div>
-          <button onClick={onClose} className="p-1 hover:bg-white/5 rounded-lg" title="Close">
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={handleEdit}
+              className="p-1 hover:bg-white/5 rounded-lg text-blue-400 hover:text-blue-300" 
+              title="Edit workout"
+            >
+              <Edit3 className="w-5 h-5" />
+            </button>
+            <button 
+              onClick={handleDelete}
+              disabled={deleting}
+              className="p-1 hover:bg-white/5 rounded-lg text-red-400 hover:text-red-300 disabled:opacity-50" 
+              title="Delete workout"
+            >
+              <Trash2 className="w-5 h-5" />
+            </button>
+            <button onClick={onClose} className="p-1 hover:bg-white/5 rounded-lg" title="Close">
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {Object.entries(groupedSets).map(([exerciseId, exerciseSets]) => (
