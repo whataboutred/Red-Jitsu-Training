@@ -27,6 +27,7 @@ create table if not exists public.workouts (
   id uuid primary key default uuid_generate_v4(),
   user_id uuid not null references auth.users(id) on delete cascade,
   performed_at timestamptz not null default now(),
+  title text,
   note text,
   created_at timestamptz default now()
 );

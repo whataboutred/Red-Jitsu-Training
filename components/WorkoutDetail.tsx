@@ -10,7 +10,6 @@ type WorkoutSet = {
   exercise_id: string
   weight: number | null
   reps: number | null
-  notes: string | null
 }
 
 type Exercise = {
@@ -38,14 +37,29 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
         .single()
       setWorkout(w as any)
 
-      // Load sets
+      // Load sets through the proper table structure
       const { data: s } = await supabase
-        .from('workout_sets')
-        .select('id,exercise_id,weight,reps,notes')
-        .eq('workout_id', workoutId)
-        .eq('user_id', userId)
-        .order('created_at', { ascending: true })
-      setSets((s || []) as WorkoutSet[])
+        .from('sets')
+        .select(`
+          id,
+          weight,
+          reps,
+          workout_exercises!inner(
+            exercise_id,
+            workout_id
+          )
+        `)
+        .eq('workout_exercises.workout_id', workoutId)
+        .order('set_index', { ascending: true })
+      
+      // Transform the data to match the expected format
+      const transformedSets = (s || []).map(set => ({
+        id: set.id,
+        exercise_id: set.workout_exercises.exercise_id,
+        weight: set.weight,
+        reps: set.reps
+      }))
+      setSets(transformedSets)
 
       // Load exercises
       const { data: e } = await supabase
@@ -109,7 +123,6 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
               {set.reps && `${set.reps} reps`}
               {!set.weight && !set.reps && 'No details recorded'}
             </div>
-            {set.notes && <div className="text-sm text-white/60 mt-1">{set.notes}</div>}
           </div>
         ))}
 
