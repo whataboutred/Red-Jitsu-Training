@@ -5,7 +5,8 @@ import Link from 'next/link'
 import { Suspense, useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId } from '@/lib/activeUser'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
+import WorkoutDetail from '@/components/WorkoutDetail'
 
 type Workout = { id:string; performed_at:string; title:string|null }
 type BJJ = { id:string; performed_at:string; duration_min:number; kind:'class'|'drilling'|'open_mat'; intensity:string|null; notes:string|null }
@@ -28,7 +29,12 @@ function HistoryClient(){
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [bjj, setBjj] = useState<BJJ[]>([])
   const params = useSearchParams()
+  const router = useRouter()
   const highlightId = params.get('highlight')
+
+  const closeWorkout = () => {
+    router.push('/history')
+  }
 
   useEffect(()=>{(async()=>{
     const { data:{ user } } = await supabase.auth.getUser()
@@ -56,6 +62,8 @@ function HistoryClient(){
   return (
     <main className="max-w-4xl mx-auto p-4 space-y-6">
       <h1 className="text-2xl">History</h1>
+      
+      {highlightId && <WorkoutDetail workoutId={highlightId} onClose={closeWorkout} />}
 
       {/* Strength Training */}
       <div className="card">
@@ -70,7 +78,7 @@ function HistoryClient(){
                 <div className="text-white/90">{new Date(w.performed_at).toLocaleString()}</div>
                 <div className="text-white/70 text-sm">{w.title ?? 'Untitled'}</div>
               </div>
-              <Link href={`/history?highlight=${w.id}`} className="toggle self-center">Open</Link>
+              <button onClick={() => router.push(`/history?highlight=${w.id}`)} className="toggle self-center">Open</button>
             </div>
           ))}
           {!workouts.length && <div className="text-white/60">No workouts yet.</div>}
