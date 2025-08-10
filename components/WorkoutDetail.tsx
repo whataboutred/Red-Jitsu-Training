@@ -53,7 +53,7 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
         .order('set_index', { ascending: true })
       
       // Transform the data to match the expected format
-      const transformedSets = (s || []).map(set => ({
+      const transformedSets = (s || []).map((set: any) => ({
         id: set.id,
         exercise_id: set.workout_exercises.exercise_id,
         weight: set.weight,
