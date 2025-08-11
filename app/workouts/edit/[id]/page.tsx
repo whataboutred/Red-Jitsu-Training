@@ -9,6 +9,7 @@ import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
+import { logger, EventType } from '@/lib/splunkLogger'
 
 type Exercise = { id: string; name: string; category: 'barbell'|'dumbbell'|'machine'|'cable'|'other' }
 type PresetTitle = 'Upper' | 'Lower' | 'Push' | 'Pull' | 'Legs' | 'Other'
@@ -230,6 +231,19 @@ export default function EnhancedEditWorkoutPage() {
     try {
       console.log('Starting workout save process...')
       
+      // Log workout update attempt
+      logger.info(
+        EventType.WORKOUT_UPDATED,
+        `User attempting to update workout ${workoutId}`,
+        {
+          workout_id: workoutId,
+          title: title,
+          performed_at: performedAt,
+          has_note: !!note.trim()
+        },
+        userId
+      )
+      
       // Step 1: Update workout basic info only (safest operation first)
       const { error: workoutError } = await supabase
         .from('workouts')
@@ -243,10 +257,28 @@ export default function EnhancedEditWorkoutPage() {
 
       if (workoutError) {
         console.error('Workout update error:', workoutError)
+        logger.error(
+          EventType.DATABASE_ERROR,
+          `Failed to update workout ${workoutId}`,
+          workoutError,
+          userId
+        )
         throw new Error(`Failed to update workout info: ${workoutError.message}`)
       }
 
       console.log('Workout basic info updated successfully')
+      
+      // Log successful update
+      logger.info(
+        EventType.WORKOUT_UPDATED,
+        `Successfully updated workout ${workoutId}`,
+        {
+          workout_id: workoutId,
+          title: title,
+          updated_fields: ['performed_at', 'title', 'note']
+        },
+        userId
+      )
       
       // For now, only update basic workout info to prevent data loss
       // TODO: Add safe exercise/set update functionality later
@@ -258,6 +290,15 @@ export default function EnhancedEditWorkoutPage() {
     } catch (error) {
       console.error('Save error:', error)
       const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      
+      // Log the error
+      logger.error(
+        EventType.APP_ERROR,
+        `Workout update failed for ${workoutId}`,
+        error,
+        userId
+      )
+      
       alert(`Failed to update workout: ${errorMessage}`)
     } finally {
       setSaving(false)
