@@ -87,7 +87,10 @@ function HistoryClient(){
                 <div className="text-white/90">{new Date(w.performed_at).toLocaleString()}</div>
                 <div className="text-white/70 text-sm">{w.title ?? 'Untitled'}</div>
               </div>
-              <button onClick={() => router.push(`/history?highlight=${w.id}`)} className="toggle self-center">Open</button>
+              <div className="flex gap-2">
+                <button onClick={() => router.push(`/history?highlight=${w.id}`)} className="toggle text-sm px-3 py-1">Open</button>
+                <button onClick={() => router.push(`/workouts/edit/${w.id}`)} className="toggle text-sm px-3 py-1 bg-blue-500/20 border-blue-400/50 hover:bg-blue-500/30">Edit</button>
+              </div>
             </div>
           ))}
           {!workouts.length && <div className="text-white/60">No workouts yet.</div>}
