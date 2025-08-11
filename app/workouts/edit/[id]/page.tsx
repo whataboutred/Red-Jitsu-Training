@@ -257,7 +257,8 @@ export default function EnhancedEditWorkoutPage() {
       
     } catch (error) {
       console.error('Save error:', error)
-      alert(`Failed to update workout: ${error.message}`)
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error occurred'
+      alert(`Failed to update workout: ${errorMessage}`)
     } finally {
       setSaving(false)
     }
