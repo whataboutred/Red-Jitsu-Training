@@ -65,23 +65,63 @@ export default function EnhancedSettings() {
     const userId = await getActiveUserId()
     if (!userId) { window.location.href = '/login'; return }
 
-    // Load profile
-    const { data: p } = await supabase
-      .from('profiles')
-      .select('unit,weekly_goal,target_weeks,goal_start,bjj_weekly_goal,cardio_weekly_goal,show_strength_goal,show_bjj_goal,show_cardio_goal')
-      .eq('id', userId)
-      .maybeSingle()
+    try {
+      // First, try to get existing profile
+      let { data: p, error } = await supabase
+        .from('profiles')
+        .select('unit,weekly_goal,target_weeks,goal_start,bjj_weekly_goal,cardio_weekly_goal,show_strength_goal,show_bjj_goal,show_cardio_goal')
+        .eq('id', userId)
+        .maybeSingle()
 
-    if (p) {
-      setUnit(((p as Profile).unit ?? 'lb') as 'lb'|'kg')
-      setWeeklyGoal((p as Profile).weekly_goal ?? 4)
-      setTargetWeeks(((p as Profile).target_weeks ?? null) as number|null ?? '')
-      setGoalStart(((p as Profile).goal_start ?? null) as string|null ?? '')
-      setBjjWeeklyGoal((p as Profile).bjj_weekly_goal ?? 2)
-      setCardioWeeklyGoal((p as Profile).cardio_weekly_goal ?? 3)
-      setShowStrengthGoal((p as Profile).show_strength_goal ?? true)
-      setShowBjjGoal((p as Profile).show_bjj_goal ?? true)
-      setShowCardioGoal((p as Profile).show_cardio_goal ?? false)
+      if (error) {
+        console.error('Error loading profile:', error)
+      }
+
+      // If no profile exists, create one with defaults
+      if (!p) {
+        console.log('No profile found, creating default profile')
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .upsert({
+            id: userId,
+            unit: 'lb',
+            weekly_goal: 4,
+            bjj_weekly_goal: 2,
+            cardio_weekly_goal: 3,
+            show_strength_goal: true,
+            show_bjj_goal: true,
+            show_cardio_goal: false
+          }, { 
+            onConflict: 'id',
+            ignoreDuplicates: false 
+          })
+          .select('unit,weekly_goal,target_weeks,goal_start,bjj_weekly_goal,cardio_weekly_goal,show_strength_goal,show_bjj_goal,show_cardio_goal')
+          .single()
+
+        if (createError) {
+          console.error('Error creating profile:', createError)
+        } else {
+          p = newProfile
+          console.log('Created default profile:', p)
+        }
+      }
+
+      if (p) {
+        console.log('Loaded profile data:', p)
+        setUnit(((p as Profile).unit ?? 'lb') as 'lb'|'kg')
+        setWeeklyGoal((p as Profile).weekly_goal ?? 4)
+        setTargetWeeks(((p as Profile).target_weeks ?? null) as number|null ?? '')
+        setGoalStart(((p as Profile).goal_start ?? null) as string|null ?? '')
+        setBjjWeeklyGoal((p as Profile).bjj_weekly_goal ?? 2)
+        setCardioWeeklyGoal((p as Profile).cardio_weekly_goal ?? 3)
+        setShowStrengthGoal((p as Profile).show_strength_goal ?? true)
+        setShowBjjGoal((p as Profile).show_bjj_goal ?? true)
+        setShowCardioGoal((p as Profile).show_cardio_goal ?? false)
+      } else {
+        console.log('Still no profile found, using component defaults')
+      }
+    } catch (err) {
+      console.error('Error in loadUserData:', err)
     }
 
     // Load user stats for context
