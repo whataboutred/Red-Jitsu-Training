@@ -68,6 +68,11 @@ export default function CardioPage() {
   // Form state
   const [selectedCategory, setSelectedCategory] = useState<string>('')
   const [customActivity, setCustomActivity] = useState('')
+  const [performedAt, setPerformedAt] = useState<string>(() => {
+    const d = new Date()
+    d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+    return d.toISOString().slice(0, 16)
+  })
   const [session, setSession] = useState<CardioSession>({
     activity: '',
     distance_unit: 'miles',
@@ -199,7 +204,7 @@ export default function CardioPage() {
 
     setSaving(true)
     try {
-      const { error } = await supabase.from('cardio_sessions').insert({
+      const sessionData = {
         user_id: userId,
         activity: session.activity,
         duration_minutes: session.duration_minutes || null,
@@ -208,14 +213,20 @@ export default function CardioPage() {
         intensity: session.intensity,
         calories: session.calories || null,
         notes: session.notes?.trim() || null,
-        performed_at: new Date().toISOString()
-      })
+        performed_at: new Date(performedAt).toISOString()
+      }
+
+      console.log('Saving cardio session:', sessionData)
+
+      const { data, error } = await supabase.from('cardio_sessions').insert(sessionData)
 
       if (error) {
-        console.error('Save error:', error)
-        alert('Failed to save cardio session')
+        console.error('Save error details:', error)
+        alert(`Failed to save cardio session: ${error.message}`)
         return
       }
+
+      console.log('Save successful:', data)
 
       alert('Cardio session saved!')
       
@@ -227,6 +238,11 @@ export default function CardioPage() {
       })
       setElapsedSeconds(0)
       resetTimer()
+      
+      // Reset date to current time
+      const d = new Date()
+      d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
+      setPerformedAt(d.toISOString().slice(0, 16))
       
       // Navigate to history or dashboard
       setTimeout(() => {
@@ -361,6 +377,18 @@ export default function CardioPage() {
               <div className="font-medium mb-4">📊 Session Details</div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {/* Date & Time */}
+                <div className="md:col-span-2">
+                  <label className="block text-sm text-white/80 font-medium mb-2">
+                    Date & Time
+                  </label>
+                  <input
+                    type="datetime-local"
+                    className="input w-full"
+                    value={performedAt}
+                    onChange={e => setPerformedAt(e.target.value)}
+                  />
+                </div>
                 {/* Duration */}
                 <div>
                   <label className="block text-sm text-white/80 font-medium mb-2">

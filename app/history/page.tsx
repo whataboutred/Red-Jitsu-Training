@@ -9,9 +9,11 @@ import { DEMO, getActiveUserId } from '@/lib/activeUser'
 import { useSearchParams, useRouter } from 'next/navigation'
 import WorkoutDetail from '@/components/WorkoutDetail'
 import BJJDetail from '@/components/BJJDetail'
+import CardioDetail from '@/components/CardioDetail'
 
 type Workout = { id:string; performed_at:string; title:string|null }
 type BJJ = { id:string; performed_at:string; duration_min:number; kind:'class'|'drilling'|'open_mat'; intensity:string|null; notes:string|null }
+type Cardio = { id:string; performed_at:string; activity:string; duration_minutes:number|null; distance:number|null; distance_unit:string|null; intensity:string|null; notes:string|null }
 
 export const dynamic = 'force-dynamic' // don’t prerender this page
 
@@ -31,6 +33,7 @@ function HistoryClient(){
   const [loading, setLoading] = useState(true)
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [bjj, setBjj] = useState<BJJ[]>([])
+  const [cardio, setCardio] = useState<Cardio[]>([])
   const params = useSearchParams()
   const router = useRouter()
   const highlightId = params.get('highlight')
@@ -58,6 +61,13 @@ function HistoryClient(){
       .limit(500)
     setBjj((bj||[]) as BJJ[])
 
+    const { data: cardioData } = await supabase
+      .from('cardio_sessions')
+      .select('id,performed_at,activity,duration_minutes,distance,distance_unit,intensity,notes')
+      .order('performed_at',{ascending:false})
+      .limit(500)
+    setCardio((cardioData||[]) as Cardio[])
+
     setLoading(false)
   })()},[])
 
@@ -72,6 +82,9 @@ function HistoryClient(){
       )}
       {highlightId && highlightType === 'bjj' && (
         <BJJDetail sessionId={highlightId} onClose={closeModal} />
+      )}
+      {highlightId && highlightType === 'cardio' && (
+        <CardioDetail sessionId={highlightId} onClose={closeModal} onUpdate={() => window.location.reload()} />
       )}
 
       {/* Strength Training */}
@@ -108,10 +121,39 @@ function HistoryClient(){
                 <div className="text-white/80">{s.kind.replace('_',' ')} • {s.duration_min} min {s.intensity ? `• ${s.intensity}` : ''}</div>
                 {s.notes && <div className="text-white/70 text-sm mt-1 line-clamp-2">{s.notes}</div>}
               </div>
-              <button onClick={() => router.push(`/history?highlight=${s.id}&type=bjj`)} className="toggle self-center">Open</button>
+              <div className="flex gap-2">
+                <button onClick={() => router.push(`/history?highlight=${s.id}&type=bjj`)} className="toggle text-sm px-3 py-1">Open</button>
+                <button onClick={() => router.push(`/jiu-jitsu/edit/${s.id}`)} className="toggle text-sm px-3 py-1 bg-blue-500/20 border-blue-400/50 hover:bg-blue-500/30">Edit</button>
+              </div>
             </div>
           ))}
           {!bjj.length && <div className="text-white/60">No Jiu Jitsu sessions yet.</div>}
+        </div>
+      </div>
+
+      {/* Cardio Sessions */}
+      <div className="card">
+        <div className="font-medium mb-2">Cardio</div>
+        <div className="grid gap-2">
+          {cardio.map(c=>(
+            <div key={c.id} className={`flex items-start justify-between rounded-xl p-3 ${highlightId===c.id && highlightType==='cardio' ? 'border border-brand-red bg-brand-red/10' : 'bg-black/30'}`}>
+              <div>
+                <div className="text-white/90">{new Date(c.performed_at).toLocaleString()}</div>
+                <div className="text-white/80">
+                  {c.activity}
+                  {c.duration_minutes && ` • ${c.duration_minutes} min`}
+                  {c.distance && c.distance_unit && ` • ${c.distance} ${c.distance_unit}`}
+                  {c.intensity && ` • ${c.intensity}`}
+                </div>
+                {c.notes && <div className="text-white/70 text-sm mt-1 line-clamp-2">{c.notes}</div>}
+              </div>
+              <div className="flex gap-2">
+                <button onClick={() => router.push(`/history?highlight=${c.id}&type=cardio`)} className="toggle text-sm px-3 py-1">Open</button>
+                <button onClick={() => router.push(`/cardio/edit/${c.id}`)} className="toggle text-sm px-3 py-1 bg-pink-500/20 border-pink-400/50 hover:bg-pink-500/30">Edit</button>
+              </div>
+            </div>
+          ))}
+          {!cardio.length && <div className="text-white/60">No cardio sessions yet.</div>}
         </div>
       </div>
     </main>
