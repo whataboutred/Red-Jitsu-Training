@@ -168,19 +168,41 @@ export default function EnhancedEditWorkoutPage() {
     )
   }
 
-  const filteredExercises = useMemo(() => {
-    const q = search.trim().toLowerCase()
-    return allExercises.filter(e => !q || e.name.toLowerCase().includes(q))
-  }, [allExercises, search])
+  // ExerciseSelector component handles filtering internally
 
   const title = customTitle.trim() || presetTitle
 
-  function addExercise(ex: Exercise) {
+  function addExercise(exerciseId: string) {
+    const ex = allExercises.find(e => e.id === exerciseId)
+    if (!ex) return
+    
     setItems(prev => {
       const existing = prev.find(item => item.id === ex.id)
       if (existing) return prev
       return [...prev, { id: ex.id, name: ex.name, sets: [{ weight: 0, reps: 0, set_type: 'working' }] }]
     })
+    setSearch('')
+    setIsExerciseSelectorCollapsed(true)
+  }
+
+  async function addCustomExercise() {
+    const name = search.trim()
+    if (!name) { alert('Type a name first.'); return }
+    
+    const userId = await getActiveUserId()
+    if (!userId) return
+
+    const { data: ins, error } = await supabase
+      .from('exercises')
+      .insert({ name, category: 'other', is_global: false, owner: userId })
+      .select('id,name,category')
+      .single()
+    
+    if (error || !ins) { alert('Could not create exercise.'); return }
+    
+    const newExercise = ins as Exercise
+    setAllExercises(prev => [...prev, newExercise])
+    setItems(prev => [...prev, { id: newExercise.id, name: newExercise.name, sets: [{ weight: 0, reps: 0, set_type: 'working' }] }])
     setSearch('')
     setIsExerciseSelectorCollapsed(true)
   }
@@ -383,27 +405,19 @@ export default function EnhancedEditWorkoutPage() {
         </div>
 
         {/* Exercise Selection */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-4">
-            <div className="font-medium">🏋️‍♀️ Exercises</div>
-            <button
-              className="toggle"
-              onClick={() => setIsExerciseSelectorCollapsed(!isExerciseSelectorCollapsed)}
-            >
-              {isExerciseSelectorCollapsed ? 'Add Exercise' : 'Close'}
-            </button>
-          </div>
+        <ExerciseSelector
+          exercises={allExercises}
+          search={search}
+          onSearchChange={setSearch}
+          onAddExercise={addExercise}
+          onAddCustomExercise={addCustomExercise}
+          isCollapsed={isExerciseSelectorCollapsed}
+          onToggleCollapse={() => setIsExerciseSelectorCollapsed(!isExerciseSelectorCollapsed)}
+        />
 
-          {!isExerciseSelectorCollapsed && (
-            <div className="mb-6">
-              <ExerciseSelector
-                exercises={filteredExercises}
-                search={search}
-                setSearch={setSearch}
-                onAddExercise={addExercise}
-              />
-            </div>
-          )}
+        {/* Current Exercises */}
+        <div className="card">
+          <div className="font-medium mb-4">🏋️‍♀️ Current Exercises</div>
 
           {/* Current Exercises */}
           <div className="space-y-4">
@@ -440,7 +454,6 @@ export default function EnhancedEditWorkoutPage() {
               </div>
             )}
           </div>
-        </div>
 
         {/* Save Section */}
         {items.length > 0 && (
