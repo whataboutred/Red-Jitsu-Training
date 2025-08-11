@@ -2,7 +2,8 @@
 
 import Nav from '@/components/Nav'
 import BackgroundLogo from '@/components/BackgroundLogo'
-import SetRow from '@/components/SetRow'
+import ExerciseSelector from '@/components/ExerciseSelector'
+import EnhancedSetRow from '@/components/EnhancedSetRow'
 import { useEffect, useMemo, useState } from 'react'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
@@ -12,7 +13,7 @@ import { useRouter, useParams } from 'next/navigation'
 type Exercise = { id: string; name: string; category: 'barbell'|'dumbbell'|'machine'|'cable'|'other' }
 type PresetTitle = 'Upper' | 'Lower' | 'Push' | 'Pull' | 'Legs' | 'Other'
 
-export default function EditWorkoutPage() {
+export default function EnhancedEditWorkoutPage() {
   const router = useRouter()
   const params = useParams()
   const workoutId = params.id as string
@@ -25,11 +26,14 @@ export default function EditWorkoutPage() {
   
   const [allExercises, setAllExercises] = useState<Exercise[]>([])
   const [search, setSearch] = useState('')
-  const [cat, setCat] = useState<'all'|'barbell'|'dumbbell'|'machine'|'cable'|'other'>('all')
 
   const [items, setItems] = useState<
     Array<{ id: string; name: string; sets: Array<{ weight: number; reps: number; set_type: 'warmup' | 'working' }> }>
   >([])
+
+  // UI State for enhanced experience
+  const [isExerciseSelectorCollapsed, setIsExerciseSelectorCollapsed] = useState(true)
+  const [saving, setSaving] = useState(false)
 
   const [loading, setLoading] = useState(true)
   const [demo, setDemo] = useState(false)
@@ -48,350 +52,421 @@ export default function EditWorkoutPage() {
         return
       }
 
+      // Load user's unit preference
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('unit')
+        .eq('id', userId)
+        .single()
+      if (profile?.unit) setUnit(profile.unit as 'lb' | 'kg')
+
+      // Load exercises
+      const { data: ex } = await supabase.from('exercises').select('id,name,category').order('name')
+      if (ex) setAllExercises(ex as Exercise[])
+
       // Load existing workout data
+      await loadWorkoutData()
+      setLoading(false)
+    })()
+  }, [workoutId])
+
+  async function loadWorkoutData() {
+    const userId = await getActiveUserId()
+    if (!userId) return
+
+    try {
+      // Load workout details
       const { data: workout } = await supabase
         .from('workouts')
-        .select('performed_at,title,note')
+        .select('performed_at, title, note')
         .eq('id', workoutId)
         .eq('user_id', userId)
         .single()
 
-      if (!workout) {
-        alert('Workout not found')
-        router.push('/history')
-        return
-      }
-
-      // Set workout details
-      if (workout.title) {
-        if (['Upper', 'Lower', 'Push', 'Pull', 'Legs'].includes(workout.title)) {
-          setPresetTitle(workout.title as PresetTitle)
-        } else {
-          setPresetTitle('Other')
-          setCustomTitle(workout.title)
-        }
-      }
-      setNote(workout.note || '')
-      
-      // Convert performed_at to local datetime format
-      const d = new Date(workout.performed_at)
-      d.setMinutes(d.getMinutes() - d.getTimezoneOffset())
-      setPerformedAt(d.toISOString().slice(0, 16))
-
-      // Load existing sets and exercises
-      const { data: existingSets } = await supabase
-        .from('sets')
-        .select(`
-          id,
-          weight,
-          reps,
-          set_type,
-          set_index,
-          workout_exercises!inner(
-            exercise_id,
-            display_name
-          )
-        `)
-        .eq('workout_exercises.workout_id', workoutId)
-        .order('set_index', { ascending: true })
-
-      // Group sets by exercise and build items array
-      const exerciseGroups: Record<string, any> = {}
-      
-      for (const set of existingSets || []) {
-        const exerciseId = (set as any).workout_exercises.exercise_id
-        const displayName = (set as any).workout_exercises.display_name
+      if (workout) {
+        setPerformedAt(new Date(workout.performed_at).toISOString().slice(0, 16))
+        setNote(workout.note || '')
         
-        if (!exerciseGroups[exerciseId]) {
-          exerciseGroups[exerciseId] = {
-            id: exerciseId,
-            name: displayName,
-            sets: []
+        if (workout.title) {
+          const presets: PresetTitle[] = ['Upper', 'Lower', 'Push', 'Pull', 'Legs', 'Other']
+          if (presets.includes(workout.title as PresetTitle)) {
+            setPresetTitle(workout.title as PresetTitle)
+            setCustomTitle('')
+          } else {
+            setPresetTitle('Other')
+            setCustomTitle(workout.title)
           }
         }
-        
-        exerciseGroups[exerciseId].sets.push({
-          weight: Number(set.weight),
-          reps: set.reps,
-          set_type: set.set_type as 'warmup' | 'working'
-        })
       }
-      
-      setItems(Object.values(exerciseGroups))
 
-      // Load user profile and exercises
-      const { data: profile } = await supabase.from('profiles').select('unit').eq('id', userId).maybeSingle()
-      if (profile?.unit) setUnit(profile.unit as 'lb'|'kg')
+      // Load workout exercises and sets
+      const { data: workoutExercises } = await supabase
+        .from('workout_exercises')
+        .select(`
+          id,
+          display_name,
+          exercise_id,
+          sets (
+            weight,
+            reps,
+            set_type,
+            set_index
+          )
+        `)
+        .eq('workout_id', workoutId)
+        .order('order_index')
 
-      const { data: ex } = await supabase.from('exercises').select('id,name,category').order('name')
-      setAllExercises((ex||[]) as Exercise[])
+      if (workoutExercises) {
+        const loadedItems = workoutExercises.map(we => ({
+          id: we.exercise_id || we.id,
+          name: we.display_name,
+          sets: (we.sets as any[])
+            .sort((a, b) => a.set_index - b.set_index)
+            .map(s => ({
+              weight: s.weight || 0,
+              reps: s.reps || 0,
+              set_type: s.set_type as 'warmup' | 'working'
+            }))
+        }))
+        setItems(loadedItems)
+      }
+    } catch (error) {
+      console.error('Error loading workout:', error)
+      alert('Failed to load workout data')
+    }
+  }
 
-      setLoading(false)
-    })()
-  }, [workoutId, router])
+  if (demo) {
+    return (
+      <div className="relative min-h-screen bg-black">
+        <BackgroundLogo />
+        <Nav />
+        <main className="relative z-10 p-4 max-w-xl mx-auto">
+          <h1 className="text-xl font-semibold mb-2">Demo mode</h1>
+          <p className="text-white/70">
+            You're viewing the app in read-only demo mode. To edit workouts,
+            please <Link href="/login" className="underline">sign in</Link>.
+          </p>
+        </main>
+      </div>
+    )
+  }
 
-  const filtered = useMemo(()=>{
-    const q=search.trim().toLowerCase()
-    return allExercises.filter(e=>{
-      const matchCat = (cat==='all') || (e.category===cat)
-      const matchText = !q || e.name.toLowerCase().includes(q)
-      return matchCat && matchText
+  if (loading) {
+    return (
+      <div className="relative min-h-screen bg-black">
+        <BackgroundLogo />
+        <Nav />
+        <main className="relative z-10 max-w-4xl mx-auto p-4">
+          <div className="animate-pulse space-y-6">
+            <div className="h-8 bg-white/10 rounded w-1/3"></div>
+            <div className="h-32 bg-white/10 rounded"></div>
+            <div className="h-48 bg-white/10 rounded"></div>
+          </div>
+        </main>
+      </div>
+    )
+  }
+
+  const filteredExercises = useMemo(() => {
+    const q = search.trim().toLowerCase()
+    return allExercises.filter(e => !q || e.name.toLowerCase().includes(q))
+  }, [allExercises, search])
+
+  const title = customTitle.trim() || presetTitle
+
+  function addExercise(ex: Exercise) {
+    setItems(prev => {
+      const existing = prev.find(item => item.id === ex.id)
+      if (existing) return prev
+      return [...prev, { id: ex.id, name: ex.name, sets: [{ weight: 0, reps: 0, set_type: 'working' }] }]
     })
-  },[allExercises,search,cat])
-
-  function addExercise(id:string){
-    const ex = allExercises.find(e=>e.id===id); if(!ex) return
-    setItems(p=>[...p, { id: ex.id, name: ex.name, sets: [] }])
-  }
-
-  async function addCustomExercise(){
-    const name = search.trim()
-    if(!name){ alert('Type a name first.'); return }
-    const userId = await getActiveUserId()
-    if(!userId){ window.location.href='/login'; return }
-    const { data: ins, error } = await supabase
-      .from('exercises')
-      .insert({ name, category:'other', is_global:false, owner:userId })
-      .select('id,name,category')
-      .single()
-    if(error || !ins){ alert('Could not create exercise.'); return }
-    setAllExercises(prev => [...prev, ins as Exercise])
-    setItems(prev => [...prev, { id: (ins as Exercise).id, name: (ins as Exercise).name, sets: [] }])
     setSearch('')
+    setIsExerciseSelectorCollapsed(true)
   }
 
-  function resolveTitle(): string | null {
-    const fromPreset = presetTitle !== 'Other' ? presetTitle : customTitle.trim()
-    return fromPreset ? fromPreset : null
+  function removeExercise(exerciseId: string) {
+    setItems(prev => prev.filter(item => item.id !== exerciseId))
   }
 
-  function toISO(dtLocal: string){
-    const d = new Date(dtLocal)
-    return d.toISOString()
+  function updateSets(exerciseId: string, newSets: Array<{ weight: number; reps: number; set_type: 'warmup' | 'working' }>) {
+    setItems(prev => prev.map(item =>
+      item.id === exerciseId ? { ...item, sets: newSets } : item
+    ))
   }
 
-  async function saveWorkout() {
+  async function handleSave() {
     const userId = await getActiveUserId()
-    if (!userId) { alert('Sign in again.'); return }
+    if (!userId) return
 
-    const title = resolveTitle()
-    const iso = performedAt ? toISO(performedAt) : new Date().toISOString()
+    if (items.length === 0) {
+      alert('Add at least one exercise to save the workout.')
+      return
+    }
 
+    setSaving(true)
     try {
-      // Update workout details
+      // Update workout
       const { error: workoutError } = await supabase
         .from('workouts')
-        .update({ 
-          performed_at: iso, 
-          title, 
-          note: note || null 
+        .update({
+          performed_at: new Date(performedAt).toISOString(),
+          title: title,
+          note: note.trim() || null
         })
         .eq('id', workoutId)
         .eq('user_id', userId)
 
-      if (workoutError) {
-        alert('Failed to update workout')
-        console.error('Update error:', workoutError)
-        return
-      }
+      if (workoutError) throw workoutError
 
-      // Delete existing workout_exercises and sets (CASCADE will handle sets)
-      await supabase
+      // Delete existing exercises and sets
+      const { data: existingExercises } = await supabase
         .from('workout_exercises')
-        .delete()
+        .select('id')
         .eq('workout_id', workoutId)
 
-      // Re-insert all exercises and sets
-      for (const it of items) {
-        const { data: wex } = await supabase
+      if (existingExercises && existingExercises.length > 0) {
+        const exerciseIds = existingExercises.map(e => e.id)
+        
+        // Delete sets first
+        await supabase
+          .from('sets')
+          .delete()
+          .in('workout_exercise_id', exerciseIds)
+        
+        // Delete exercises
+        await supabase
           .from('workout_exercises')
-          .insert({ workout_id: workoutId, exercise_id: it.id, display_name: it.name })
+          .delete()
+          .eq('workout_id', workoutId)
+      }
+
+      // Insert updated exercises and sets
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        
+        const { data: we, error: weError } = await supabase
+          .from('workout_exercises')
+          .insert({
+            workout_id: workoutId,
+            exercise_id: item.id,
+            display_name: item.name,
+            order_index: i
+          })
           .select('id')
           .single()
-        if (!wex) continue
 
-        if (it.sets.length) {
-          const rows = it.sets.map((s, idx) => ({
-            workout_exercise_id: wex.id,
-            set_index: idx + 1,
-            weight: s.weight,
-            reps: s.reps,
-            set_type: s.set_type,
-          }))
-          await supabase.from('sets').insert(rows)
+        if (weError) throw weError
+
+        // Insert sets
+        for (let j = 0; j < item.sets.length; j++) {
+          const set = item.sets[j]
+          const { error: setError } = await supabase
+            .from('sets')
+            .insert({
+              workout_exercise_id: we.id,
+              weight: set.weight || null,
+              reps: set.reps || null,
+              set_type: set.set_type,
+              set_index: j,
+              completed: true
+            })
+
+          if (setError) throw setError
         }
       }
 
-      router.push('/history?highlight=' + workoutId)
+      alert('Workout updated successfully!')
+      router.push('/history')
     } catch (error) {
-      alert('Failed to save workout')
       console.error('Save error:', error)
+      alert('Failed to update workout')
+    } finally {
+      setSaving(false)
     }
-  }
-
-  const canSave = useMemo(() => items.some(i => i.sets.length), [items])
-
-  if (loading) {
-    return (
-      <div>
-        <Nav />
-        <main className="max-w-3xl mx-auto p-4">
-          <div className="text-center">Loading workout...</div>
-        </main>
-      </div>
-    )
   }
 
   return (
     <div className="relative min-h-screen bg-black">
       <BackgroundLogo />
       <Nav />
-      <main className="relative z-10 max-w-3xl mx-auto p-4 space-y-4">
-        <div className="flex items-center justify-between">
-          <h1 className="text-2xl">Edit Workout</h1>
+      <main className="relative z-10 max-w-4xl mx-auto p-4 space-y-6">
+        <div className="flex items-center gap-4">
           <Link href="/history" className="toggle">
             ← Back to History
           </Link>
+          <h1 className="text-2xl font-bold">Edit Workout</h1>
         </div>
 
-        {/* Title + Notes + Performed at */}
-        <div className="card space-y-3">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <label className="block md:col-span-1">
-              <div className="mb-1 text-sm text-white/80">Workout title</div>
-              <select
-                className="input w-full"
-                value={presetTitle}
-                onChange={(e) => setPresetTitle(e.target.value as PresetTitle)}
-              >
-                <option>Upper</option>
-                <option>Lower</option>
-                <option>Push</option>
-                <option>Pull</option>
-                <option>Legs</option>
-                <option>Other</option>
-              </select>
-            </label>
-            <label className="block md:col-span-2">
-              <div className="mb-1 text-sm text-white/80">Custom title (if "Other")</div>
-              <input
-                className="input w-full"
-                placeholder="e.g., Upper A, Full Body, Arms, etc."
-                value={customTitle}
-                onChange={(e) => setCustomTitle(e.target.value)}
-                disabled={presetTitle !== 'Other'}
-              />
-            </label>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <label className="block md:col-span-2">
-              <div className="mb-1 text-sm text-white/80">Notes (optional)</div>
-              <input
-                className="input w-full"
-                placeholder="Anything you want to remember"
-                value={note}
-                onChange={(e) => setNote(e.target.value)}
-              />
-            </label>
-
-            <label className="block">
-              <div className="mb-1 text-sm text-white/80">Performed at</div>
+        {/* Workout Details */}
+        <div className="card">
+          <div className="font-medium mb-4">📝 Workout Details</div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm text-white/80 font-medium mb-2">
+                Workout Date & Time
+              </label>
               <input
                 type="datetime-local"
                 className="input w-full"
                 value={performedAt}
-                onChange={(e)=>setPerformedAt(e.target.value)}
+                onChange={e => setPerformedAt(e.target.value)}
               />
-            </label>
-          </div>
-        </div>
-
-        {/* Exercise picker */}
-        <div className="card space-y-3">
-          <div className="flex flex-wrap gap-2">
-            {(['all','barbell','dumbbell','machine','cable','other'] as const).map(k=>(
-              <button key={k} className={`toggle ${cat===k?'border-brand-red bg-brand-red/20':''}`} onClick={()=>setCat(k)}>{k[0].toUpperCase()+k.slice(1)}</button>
-            ))}
-          </div>
-          <input className="input w-full" placeholder="Type to filter exercises… or type a new name" value={search} onChange={e=>setSearch(e.target.value)} />
-
-          <div className="grid sm:grid-cols-2 gap-2">
-            <div className="max-h-64 overflow-auto border border-white/10 rounded-xl p-2">
-              {filtered.map(ex=>(
-                <button key={ex.id} className="toggle w-full mb-2 text-left" onClick={()=>addExercise(ex.id)}>
-                  {ex.name} {ex.category!=='other'?`• ${ex.category}`:''}
-                </button>
-              ))}
-              {search.trim() && (
-                <button className="toggle w-full mt-2" onClick={addCustomExercise}>
-                  + Add custom: "{search.trim()}"
-                </button>
-              )}
             </div>
-            <div className="text-white/60 text-sm self-start">Click an item (or "Add custom") to add →</div>
-          </div>
-        </div>
-
-        {/* Selected exercises + sets */}
-        <div className="space-y-4">
-          {items.map((it, idx) => (
-            <div key={idx} className="card space-y-3">
-              <div className="flex items-center justify-between">
-                <div className="font-medium">{it.name}</div>
-                <button className="toggle" onClick={() => setItems(prev => prev.filter((_, i) => i !== idx))}>Remove</button>
-              </div>
-              <div className="hidden md:grid grid-cols-12 gap-3 px-1 text-sm font-medium text-white/70">
-                <div className="col-span-5">Weight ({unit})</div>
-                <div className="col-span-3">Reps</div>
-                <div className="col-span-3">Set type</div>
-                <div className="col-span-1"></div>
-              </div>
-              <div className="grid gap-2">
-                {it.sets.map((s, si) => (
-                  <SetRow
-                    key={si}
-                    unitLabel={unit}
-                    initial={s}
-                    onChange={(v) =>
-                      setItems(prev =>
-                        prev.map((p, i) =>
-                          i === idx ? { ...p, sets: p.sets.map((ps, psi) => (psi === si ? v : ps)) } : p
-                        )
-                      )
-                    }
-                    onRemove={() =>
-                      setItems(prev =>
-                        prev.map((p, i) =>
-                          i === idx ? { ...p, sets: p.sets.filter((_, psi) => psi !== si) } : p
-                        )
-                      )
-                    }
-                  />
-                ))}
-              </div>
+            <div>
+              <label className="block text-sm text-white/80 font-medium mb-2">
+                Units
+              </label>
               <div className="flex gap-2">
-                <button className="toggle" onClick={() =>
-                  setItems(prev =>
-                    prev.map((p, i) => i === idx ? { ...p, sets: [...p.sets, { weight: 0, reps: 0, set_type: 'working' }] } : p)
-                  )
-                }>+ Add Set</button>
-                {it.sets.length>0 && (
-                  <button className="toggle" onClick={() =>
-                    setItems(prev =>
-                      prev.map((p, i) => i === idx ? { ...p, sets: [...p.sets, { ...p.sets[p.sets.length-1] }] } : p)
-                    )
-                  }>Copy Last</button>
-                )}
+                <button
+                  className={`toggle flex-1 ${unit === 'lb' ? 'bg-brand-red/20 border-brand-red text-white' : ''}`}
+                  onClick={() => setUnit('lb')}
+                >
+                  Pounds
+                </button>
+                <button
+                  className={`toggle flex-1 ${unit === 'kg' ? 'bg-brand-red/20 border-brand-red text-white' : ''}`}
+                  onClick={() => setUnit('kg')}
+                >
+                  Kilograms
+                </button>
               </div>
             </div>
-          ))}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-white/80 font-medium mb-2">
+                Workout Type
+              </label>
+              <select
+                className="input w-full"
+                value={presetTitle}
+                onChange={e => setPresetTitle(e.target.value as PresetTitle)}
+              >
+                <option value="Upper">Upper Body</option>
+                <option value="Lower">Lower Body</option>
+                <option value="Push">Push Day</option>
+                <option value="Pull">Pull Day</option>
+                <option value="Legs">Leg Day</option>
+                <option value="Other">Custom</option>
+              </select>
+            </div>
+            {presetTitle === 'Other' && (
+              <div>
+                <label className="block text-sm text-white/80 font-medium mb-2">
+                  Custom Title
+                </label>
+                <input
+                  type="text"
+                  className="input w-full"
+                  value={customTitle}
+                  onChange={e => setCustomTitle(e.target.value)}
+                  placeholder="Enter custom workout name"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm text-white/80 font-medium mb-2">
+              Notes (Optional)
+            </label>
+            <textarea
+              className="input w-full h-20 resize-none"
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              placeholder="How did the workout feel? Any observations..."
+            />
+          </div>
         </div>
 
-        <div className="flex gap-2">
-          <button className="btn disabled:opacity-50" disabled={!canSave} onClick={saveWorkout}>Save Changes</button>
-          <Link href="/history" className="toggle">Cancel</Link>
+        {/* Exercise Selection */}
+        <div className="card">
+          <div className="flex items-center justify-between mb-4">
+            <div className="font-medium">🏋️‍♀️ Exercises</div>
+            <button
+              className="toggle"
+              onClick={() => setIsExerciseSelectorCollapsed(!isExerciseSelectorCollapsed)}
+            >
+              {isExerciseSelectorCollapsed ? 'Add Exercise' : 'Close'}
+            </button>
+          </div>
+
+          {!isExerciseSelectorCollapsed && (
+            <div className="mb-6">
+              <ExerciseSelector
+                exercises={filteredExercises}
+                search={search}
+                setSearch={setSearch}
+                onAddExercise={addExercise}
+              />
+            </div>
+          )}
+
+          {/* Current Exercises */}
+          <div className="space-y-4">
+            {items.map((item, idx) => (
+              <div key={item.id} className="bg-black/30 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="font-semibold text-lg text-white/90">{item.name}</h3>
+                  <button
+                    className="toggle text-sm px-3 py-1 text-red-400 hover:bg-red-500/20"
+                    onClick={() => removeExercise(item.id)}
+                  >
+                    Remove
+                  </button>
+                </div>
+                <EnhancedSetRow
+                  sets={item.sets}
+                  onChange={(sets) => updateSets(item.id, sets)}
+                  unit={unit}
+                />
+              </div>
+            ))}
+
+            {items.length === 0 && (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-3">💪</div>
+                <div className="font-medium mb-2">No exercises added yet</div>
+                <div className="text-white/70 mb-4">Add exercises to build your workout</div>
+                <button
+                  className="btn"
+                  onClick={() => setIsExerciseSelectorCollapsed(false)}
+                >
+                  Add First Exercise
+                </button>
+              </div>
+            )}
+          </div>
         </div>
+
+        {/* Save Section */}
+        {items.length > 0 && (
+          <div className="sticky bottom-4 bg-black/90 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="font-medium text-white/90">{title}</div>
+                <div className="text-sm text-white/70">
+                  {items.length} exercise{items.length !== 1 ? 's' : ''} • {items.reduce((acc, item) => acc + item.sets.length, 0)} sets
+                </div>
+              </div>
+              <div className="flex gap-3">
+                <Link href="/history" className="toggle px-6">
+                  Cancel
+                </Link>
+                <button
+                  className="btn disabled:opacity-50"
+                  onClick={handleSave}
+                  disabled={saving}
+                >
+                  {saving ? 'Saving...' : 'Update Workout'}
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </main>
     </div>
   )
