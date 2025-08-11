@@ -1,23 +1,4 @@
-import { Logger } from 'splunk-logging'
-
-// For localhost testing - disable SSL verification
-if (process.env.NODE_ENV === 'development') {
-  process.env["NODE_TLS_REJECT_UNAUTHORIZED"] = "0"
-}
-
-// Splunk configuration - add these to your environment variables
-const SPLUNK_CONFIG = {
-  token: process.env.SPLUNK_HEC_TOKEN || '',
-  url: process.env.SPLUNK_URL || '',
-  source: 'ironlog-app',
-  sourcetype: '_json',
-  index: 'main',
-  maxBatchCount: 1,
-  maxBatchSize: 0
-}
-
-// Create Splunk logger instance
-const splunkLogger = new Logger(SPLUNK_CONFIG)
+// Client-side Splunk logger that sends to our API route
 
 // Event types for structured logging
 export enum LogLevel {
@@ -53,28 +34,22 @@ export interface LogEvent {
   user_agent?: string
 }
 
-// Main logging function
+// Main logging function - sends to API route
 export function logToSplunk(event: LogEvent) {
-  // Only log if Splunk is configured
-  if (!SPLUNK_CONFIG.token || !SPLUNK_CONFIG.url) {
-    console.log('Splunk not configured, logging to console:', event)
-    return
+  // In development, also log to console for debugging
+  if (process.env.NODE_ENV === 'development') {
+    console.log('Logging event:', event)
   }
 
-  const logData = {
-    time: Date.now(),
-    event: {
-      ...event,
-      timestamp: event.timestamp || new Date().toISOString(),
-      app: 'ironlog-workout-tracker',
-      environment: process.env.NODE_ENV || 'development'
-    }
-  }
-
-  splunkLogger.send(logData, (err: any, resp: any, body: any) => {
-    if (err) {
-      console.error('Failed to send log to Splunk:', err)
-    }
+  // Send to our API route (which handles server-side Splunk logging)
+  fetch('/api/log', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify(event),
+  }).catch((error) => {
+    console.error('Failed to send log to API:', error)
   })
 }
 
