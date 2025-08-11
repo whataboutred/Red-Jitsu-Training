@@ -432,11 +432,56 @@ export default function EnhancedEditWorkoutPage() {
                     Remove
                   </button>
                 </div>
-                <EnhancedSetRow
-                  sets={item.sets}
-                  onChange={(sets) => updateSets(item.id, sets)}
-                  unit={unit}
-                />
+                <div className="space-y-3">
+                  {item.sets.map((set, setIndex) => (
+                    <EnhancedSetRow
+                      key={setIndex}
+                      initial={set}
+                      setIndex={setIndex}
+                      unitLabel={unit}
+                      previousSet={setIndex > 0 ? item.sets[setIndex - 1] : undefined}
+                      onChange={(updatedSet) => {
+                        const newSets = [...item.sets]
+                        newSets[setIndex] = updatedSet
+                        updateSets(item.id, newSets)
+                      }}
+                      onRemove={() => {
+                        const newSets = item.sets.filter((_, i) => i !== setIndex)
+                        updateSets(item.id, newSets)
+                      }}
+                      onCopyPrevious={setIndex > 0 ? () => {
+                        const newSets = [...item.sets]
+                        newSets[setIndex] = { ...item.sets[setIndex - 1] }
+                        updateSets(item.id, newSets)
+                      } : undefined}
+                    />
+                  ))}
+                  
+                  <div className="flex gap-2 mt-4">
+                    <button 
+                      className="btn flex-1" 
+                      onClick={() =>
+                        setItems(prev =>
+                          prev.map((p, i) => i === idx ? { ...p, sets: [...p.sets, { weight: 0, reps: 0, set_type: 'working' }] } : p)
+                        )
+                      }
+                    >
+                      + Add Set
+                    </button>
+                    {item.sets.length > 0 && (
+                      <button 
+                        className="toggle flex-1" 
+                        onClick={() =>
+                          setItems(prev =>
+                            prev.map((p, i) => i === idx ? { ...p, sets: [...p.sets, { ...p.sets[p.sets.length-1] }] } : p)
+                          )
+                        }
+                      >
+                        📋 Copy Last
+                      </button>
+                    )}
+                  </div>
+                </div>
               </div>
             ))}
 
