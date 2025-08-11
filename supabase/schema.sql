@@ -6,6 +6,10 @@ create table if not exists public.profiles (
   target_weeks int,
   goal_start date,
   bjj_weekly_goal int default 2,
+  cardio_weekly_goal int default 3,
+  show_strength_goal boolean default true,
+  show_bjj_goal boolean default true,
+  show_cardio_goal boolean default false,
   created_at timestamptz default now()
 );
 alter table public.profiles enable row level security;

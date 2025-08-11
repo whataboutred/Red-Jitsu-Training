@@ -11,6 +11,10 @@ type Profile = {
   target_weeks: number|null
   goal_start: string|null
   bjj_weekly_goal: number|null
+  cardio_weekly_goal: number|null
+  show_strength_goal: boolean|null
+  show_bjj_goal: boolean|null
+  show_cardio_goal: boolean|null
 }
 
 type UserStats = {
@@ -33,6 +37,12 @@ export default function EnhancedSettings() {
   const [targetWeeks, setTargetWeeks] = useState<number|''>('')
   const [goalStart, setGoalStart] = useState<string>('')
   const [bjjWeeklyGoal, setBjjWeeklyGoal] = useState<number>(2)
+  const [cardioWeeklyGoal, setCardioWeeklyGoal] = useState<number>(3)
+
+  // Goal visibility toggles
+  const [showStrengthGoal, setShowStrengthGoal] = useState<boolean>(true)
+  const [showBjjGoal, setShowBjjGoal] = useState<boolean>(true)
+  const [showCardioGoal, setShowCardioGoal] = useState<boolean>(false)
 
   // User stats for context
   const [userStats, setUserStats] = useState<UserStats | null>(null)
@@ -58,7 +68,7 @@ export default function EnhancedSettings() {
     // Load profile
     const { data: p } = await supabase
       .from('profiles')
-      .select('unit,weekly_goal,target_weeks,goal_start,bjj_weekly_goal')
+      .select('unit,weekly_goal,target_weeks,goal_start,bjj_weekly_goal,cardio_weekly_goal,show_strength_goal,show_bjj_goal,show_cardio_goal')
       .eq('id', userId)
       .maybeSingle()
 
@@ -68,6 +78,10 @@ export default function EnhancedSettings() {
       setTargetWeeks(((p as Profile).target_weeks ?? null) as number|null ?? '')
       setGoalStart(((p as Profile).goal_start ?? null) as string|null ?? '')
       setBjjWeeklyGoal((p as Profile).bjj_weekly_goal ?? 2)
+      setCardioWeeklyGoal((p as Profile).cardio_weekly_goal ?? 3)
+      setShowStrengthGoal((p as Profile).show_strength_goal ?? true)
+      setShowBjjGoal((p as Profile).show_bjj_goal ?? true)
+      setShowCardioGoal((p as Profile).show_cardio_goal ?? false)
     }
 
     // Load user stats for context
@@ -192,7 +206,11 @@ export default function EnhancedSettings() {
         weekly_goal: Math.min(14, Math.max(1, weeklyGoal || 4)),
         target_weeks: targetWeeks === '' ? null : targetWeeks,
         goal_start: goalStart || null,
-        bjj_weekly_goal: Math.min(14, Math.max(1, bjjWeeklyGoal || 2))
+        bjj_weekly_goal: Math.min(14, Math.max(1, bjjWeeklyGoal || 2)),
+        cardio_weekly_goal: Math.min(14, Math.max(1, cardioWeeklyGoal || 3)),
+        show_strength_goal: showStrengthGoal,
+        show_bjj_goal: showBjjGoal,
+        show_cardio_goal: showCardioGoal
       }, { 
         onConflict: 'id',
         ignoreDuplicates: false 
@@ -439,6 +457,113 @@ export default function EnhancedSettings() {
         </label>
         <div className="text-xs text-white/60 bg-black/20 rounded-lg p-3">
           📈 We'll track your total mat time and consistency each week
+        </div>
+      </div>
+
+      {/* Cardio Goals */}
+      <div className="card space-y-4">
+        <div className="font-medium">❤️ Cardio Goals</div>
+        <label className="block">
+          <div className="mb-2 text-sm text-white/80 font-medium">Sessions per week (1–14)</div>
+          <div className="flex items-center gap-4">
+            <input
+              type="range"
+              min={1}
+              max={14}
+              className="flex-1"
+              value={cardioWeeklyGoal}
+              onChange={e => setCardioWeeklyGoal(Number(e.target.value))}
+            />
+            <div className="w-16 text-center bg-black/30 rounded-lg p-2 font-medium">
+              {cardioWeeklyGoal}
+            </div>
+          </div>
+        </label>
+        <div className="text-xs text-white/60 bg-black/20 rounded-lg p-3">
+          🏃 Track cardio activities like running, cycling, and machine workouts
+        </div>
+      </div>
+
+      {/* Dashboard Goals Visibility */}
+      <div className="card space-y-4">
+        <div className="font-medium">👁️ Dashboard Goal Visibility</div>
+        <div className="text-sm text-white/70 mb-4">
+          Control which goal cards appear on your dashboard. Disabled goals won't show up, keeping your dashboard focused on what matters to you.
+        </div>
+        
+        <div className="space-y-3">
+          <div className="flex items-center justify-between bg-black/20 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">💪</span>
+              <div>
+                <div className="font-medium text-white/90">Strength Training Goal</div>
+                <div className="text-sm text-white/70">Weekly workout consistency tracking</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-brand-red focus:ring-offset-2 ${
+                showStrengthGoal ? 'bg-brand-red' : 'bg-gray-600'
+              }`}
+              onClick={() => setShowStrengthGoal(!showStrengthGoal)}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ${
+                  showStrengthGoal ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between bg-black/20 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">🥋</span>
+              <div>
+                <div className="font-medium text-white/90">Jiu Jitsu Goal</div>
+                <div className="text-sm text-white/70">Weekly BJJ session tracking</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 ${
+                showBjjGoal ? 'bg-blue-500' : 'bg-gray-600'
+              }`}
+              onClick={() => setShowBjjGoal(!showBjjGoal)}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ${
+                  showBjjGoal ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between bg-black/20 rounded-xl p-4">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">❤️</span>
+              <div>
+                <div className="font-medium text-white/90">Cardio Goal</div>
+                <div className="text-sm text-white/70">Weekly cardio activity tracking</div>
+              </div>
+            </div>
+            <button
+              type="button"
+              className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-pink-500 focus:ring-offset-2 ${
+                showCardioGoal ? 'bg-pink-500' : 'bg-gray-600'
+              }`}
+              onClick={() => setShowCardioGoal(!showCardioGoal)}
+            >
+              <span
+                className={`inline-block h-4 w-4 transform rounded-full bg-white transition duration-200 ${
+                  showCardioGoal ? 'translate-x-6' : 'translate-x-1'
+                }`}
+              />
+            </button>
+          </div>
+        </div>
+
+        <div className="text-xs text-white/60 bg-black/20 rounded-lg p-3">
+          💡 You can always re-enable goals later. Your goal settings and progress are preserved.
         </div>
       </div>
 

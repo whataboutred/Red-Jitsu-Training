@@ -20,4 +20,5 @@ html, body { height: 100%; background:#0B0B0C; color:white; }
 .gradient-red{ @apply bg-gradient-to-r from-red-600/20 to-brand-red/20 border-l-4 border-brand-red; }
 .gradient-green{ @apply bg-gradient-to-r from-green-600/20 to-green-400/20 border-l-4 border-green-400; }
 .gradient-blue{ @apply bg-gradient-to-r from-blue-600/20 to-blue-400/20 border-l-4 border-blue-400; }
+.gradient-pink{ @apply bg-gradient-to-r from-pink-600/20 to-pink-400/20 border-l-4 border-pink-400; }
 h1,h2,h3{ @apply font-semibold; }
