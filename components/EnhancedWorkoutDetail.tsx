@@ -152,8 +152,8 @@ export default function EnhancedWorkoutDetail({
       set.id === setId 
         ? { 
             ...set, 
-            weight: set.originalWeight,
-            reps: set.originalReps,
+            weight: set.originalWeight ?? null,
+            reps: set.originalReps ?? null,
             isEditing: false
           }
         : set
@@ -189,9 +189,9 @@ export default function EnhancedWorkoutDetail({
           ? { 
               ...s, 
               isEditing: false,
-              originalWeight: s.weight,
-              originalReps: s.reps
-            }
+              originalWeight: s.weight ?? null,
+              originalReps: s.reps ?? null
+            } as EditableSet
           : s
       ))
       
@@ -235,9 +235,9 @@ export default function EnhancedWorkoutDetail({
       setSets(prev => prev.map(set => ({
         ...set,
         isEditing: false,
-        originalWeight: set.weight,
-        originalReps: set.reps
-      })))
+        originalWeight: set.weight ?? null,
+        originalReps: set.reps ?? null
+      } as EditableSet)))
 
       setHasChanges(false)
       setEditMode(false)
