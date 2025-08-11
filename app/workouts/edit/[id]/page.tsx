@@ -287,11 +287,10 @@ export default function EnhancedEditWorkoutPage() {
             .from('sets')
             .insert({
               workout_exercise_id: we.id,
-              weight: set.weight || null,
-              reps: set.reps || null,
+              weight: set.weight || 0,
+              reps: set.reps || 0,
               set_type: set.set_type,
-              set_index: j,
-              completed: true
+              set_index: j
             })
 
           if (setError) throw setError
