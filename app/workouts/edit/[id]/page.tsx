@@ -35,9 +35,27 @@ export default function EnhancedEditWorkoutPage() {
   // UI State for enhanced experience
   const [isExerciseSelectorCollapsed, setIsExerciseSelectorCollapsed] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set())
 
   const [loading, setLoading] = useState(true)
   const [demo, setDemo] = useState(false)
+
+  // Auto-collapse helper functions
+  const toggleExerciseExpanded = (exerciseId: string) => {
+    setExpandedExercises(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(exerciseId)) {
+        newSet.delete(exerciseId)
+      } else {
+        newSet.add(exerciseId)
+      }
+      return newSet
+    })
+  }
+
+  const expandExerciseAndCollapseOthers = (exerciseId: string) => {
+    setExpandedExercises(new Set([exerciseId]))
+  }
 
   useEffect(() => {
     (async () => {
@@ -184,6 +202,8 @@ export default function EnhancedEditWorkoutPage() {
     })
     setSearch('')
     setIsExerciseSelectorCollapsed(true)
+    // Auto-expand the new exercise and collapse others
+    expandExerciseAndCollapseOthers(ex.id)
   }
 
   async function addCustomExercise() {
@@ -206,6 +226,8 @@ export default function EnhancedEditWorkoutPage() {
     setItems(prev => [...prev, { id: newExercise.id, name: newExercise.name, sets: [{ weight: 0, reps: 0, set_type: 'working' }] }])
     setSearch('')
     setIsExerciseSelectorCollapsed(true)
+    // Auto-expand the new exercise and collapse others
+    expandExerciseAndCollapseOthers(newExercise.id)
   }
 
   function removeExercise(exerciseId: string) {
@@ -268,6 +290,108 @@ export default function EnhancedEditWorkoutPage() {
 
       console.log('Workout basic info updated successfully')
       
+      // Step 2: Update exercises and sets
+      console.log('Updating exercises and sets...')
+      
+      // Get current workout exercises to compare
+      const { data: currentWorkoutExercises } = await supabase
+        .from('workout_exercises')
+        .select('id, exercise_id, display_name, order_index')
+        .eq('workout_id', workoutId)
+        .order('order_index')
+
+      // Delete exercises that are no longer in the items array
+      if (currentWorkoutExercises) {
+        const currentExerciseIds = items.map(item => item.id)
+        const exercisesToDelete = currentWorkoutExercises.filter(we => 
+          !currentExerciseIds.includes(we.exercise_id || we.id)
+        )
+
+        for (const exerciseToDelete of exercisesToDelete) {
+          // Delete sets first (foreign key constraint)
+          await supabase
+            .from('sets')
+            .delete()
+            .eq('workout_exercise_id', exerciseToDelete.id)
+          
+          // Delete workout exercise
+          await supabase
+            .from('workout_exercises')
+            .delete()
+            .eq('id', exerciseToDelete.id)
+        }
+      }
+
+      // Update/insert exercises and sets
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        
+        // Find existing workout exercise or create new one
+        let workoutExercise = currentWorkoutExercises?.find(we => 
+          (we.exercise_id || we.id) === item.id
+        )
+        
+        if (workoutExercise) {
+          // Update existing workout exercise
+          const { error: updateExerciseError } = await supabase
+            .from('workout_exercises')
+            .update({
+              display_name: item.name,
+              order_index: i
+            })
+            .eq('id', workoutExercise.id)
+          
+          if (updateExerciseError) {
+            throw new Error(`Failed to update exercise: ${updateExerciseError.message}`)
+          }
+        } else {
+          // Insert new workout exercise
+          const { data: newWorkoutExercise, error: insertExerciseError } = await supabase
+            .from('workout_exercises')
+            .insert({
+              workout_id: workoutId,
+              exercise_id: item.id,
+              display_name: item.name,
+              order_index: i
+            })
+            .select()
+            .single()
+          
+          if (insertExerciseError) {
+            throw new Error(`Failed to insert exercise: ${insertExerciseError.message}`)
+          }
+          
+          workoutExercise = newWorkoutExercise
+        }
+
+        // Delete all existing sets for this exercise
+        await supabase
+          .from('sets')
+          .delete()
+          .eq('workout_exercise_id', workoutExercise.id)
+
+        // Insert all sets for this exercise
+        if (item.sets.length > 0) {
+          const setsToInsert = item.sets.map((set, setIndex) => ({
+            workout_exercise_id: workoutExercise.id,
+            weight: set.weight,
+            reps: set.reps,
+            set_type: set.set_type,
+            set_index: setIndex
+          }))
+
+          const { error: setsError } = await supabase
+            .from('sets')
+            .insert(setsToInsert)
+
+          if (setsError) {
+            throw new Error(`Failed to save sets: ${setsError.message}`)
+          }
+        }
+      }
+      
+      console.log('All exercises and sets updated successfully')
+      
       // Log successful update
       logger.info(
         EventType.WORKOUT_UPDATED,
@@ -275,14 +399,14 @@ export default function EnhancedEditWorkoutPage() {
         {
           workout_id: workoutId,
           title: title,
-          updated_fields: ['performed_at', 'title', 'note']
+          exercises_count: items.length,
+          sets_count: items.reduce((acc, item) => acc + item.sets.length, 0),
+          updated_fields: ['performed_at', 'title', 'note', 'exercises', 'sets']
         },
         userId
       )
       
-      // For now, only update basic workout info to prevent data loss
-      // TODO: Add safe exercise/set update functionality later
-      alert('Workout info updated successfully! (Exercise changes coming soon)')
+      alert('Workout updated successfully!')
       
       // Reload to show updated data
       await loadWorkoutData()
@@ -418,69 +542,87 @@ export default function EnhancedEditWorkoutPage() {
 
           {/* Current Exercises */}
           <div className="space-y-4">
-            {items.map((item, idx) => (
-              <div key={item.id} className="bg-black/30 rounded-2xl p-4">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="font-semibold text-lg text-white/90">{item.name}</h3>
-                  <button
-                    className="toggle text-sm px-3 py-1 text-red-400 hover:bg-red-500/20"
-                    onClick={() => removeExercise(item.id)}
+            {items.map((item, idx) => {
+              const isExpanded = expandedExercises.has(item.id)
+              return (
+                <div key={item.id} className="bg-black/30 rounded-2xl p-4">
+                  <div 
+                    className="flex items-center justify-between mb-4 cursor-pointer"
+                    onClick={() => toggleExerciseExpanded(item.id)}
                   >
-                    Remove
-                  </button>
-                </div>
-                <div className="space-y-3">
-                  {item.sets.map((set, setIndex) => (
-                    <EnhancedSetRow
-                      key={setIndex}
-                      initial={set}
-                      setIndex={setIndex}
-                      unitLabel={unit}
-                      previousSet={setIndex > 0 ? item.sets[setIndex - 1] : undefined}
-                      onChange={(updatedSet) => {
-                        const newSets = [...item.sets]
-                        newSets[setIndex] = updatedSet
-                        updateSets(item.id, newSets)
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{isExpanded ? '▼' : '▶'}</span>
+                      <h3 className="font-semibold text-lg text-white/90">{item.name}</h3>
+                      <span className="text-sm text-white/60">
+                        {item.sets.length} set{item.sets.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <button
+                      className="toggle text-sm px-3 py-1 text-red-400 hover:bg-red-500/20"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        removeExercise(item.id)
                       }}
-                      onRemove={() => {
-                        const newSets = item.sets.filter((_, i) => i !== setIndex)
-                        updateSets(item.id, newSets)
-                      }}
-                      onCopyPrevious={setIndex > 0 ? () => {
-                        const newSets = [...item.sets]
-                        newSets[setIndex] = { ...item.sets[setIndex - 1] }
-                        updateSets(item.id, newSets)
-                      } : undefined}
-                    />
-                  ))}
-                  
-                  <div className="flex gap-2 mt-4">
-                    <button 
-                      className="btn flex-1" 
-                      onClick={() =>
-                        setItems(prev =>
-                          prev.map((p, i) => i === idx ? { ...p, sets: [...p.sets, { weight: 0, reps: 0, set_type: 'working' }] } : p)
-                        )
-                      }
                     >
-                      + Add Set
+                      Remove
                     </button>
-                    {item.sets.length > 0 && (
-                      <button 
-                        className="toggle flex-1" 
-                        onClick={() =>
-                          setItems(prev =>
-                            prev.map((p, i) => i === idx ? { ...p, sets: [...p.sets, { ...p.sets[p.sets.length-1] }] } : p)
-                          )
-                        }
-                      >
-                        📋 Copy Last
-                      </button>
-                    )}
                   </div>
+                  
+                  {isExpanded && (
+                    <div className="space-y-3">
+                      {item.sets.map((set, setIndex) => (
+                        <EnhancedSetRow
+                          key={setIndex}
+                          initial={set}
+                          setIndex={setIndex}
+                          unitLabel={unit}
+                          previousSet={setIndex > 0 ? item.sets[setIndex - 1] : undefined}
+                          onChange={(updatedSet) => {
+                            const newSets = [...item.sets]
+                            newSets[setIndex] = updatedSet
+                            updateSets(item.id, newSets)
+                          }}
+                          onRemove={() => {
+                            const newSets = item.sets.filter((_, i) => i !== setIndex)
+                            updateSets(item.id, newSets)
+                          }}
+                          onCopyPrevious={setIndex > 0 ? () => {
+                            const newSets = [...item.sets]
+                            newSets[setIndex] = { ...item.sets[setIndex - 1] }
+                            updateSets(item.id, newSets)
+                          } : undefined}
+                        />
+                      ))}
+                      
+                      <div className="flex gap-2 mt-4">
+                        <button 
+                          className="btn flex-1" 
+                          onClick={() =>
+                            setItems(prev =>
+                              prev.map((p, i) => i === idx ? { ...p, sets: [...p.sets, { weight: 0, reps: 0, set_type: 'working' }] } : p)
+                            )
+                          }
+                        >
+                          + Add Set
+                        </button>
+                        {item.sets.length > 0 && (
+                          <button 
+                            className="toggle flex-1" 
+                            onClick={() =>
+                              setItems(prev =>
+                                prev.map((p, i) => i === idx ? { ...p, sets: [...p.sets, { ...p.sets[p.sets.length-1] }] } : p)
+                              )
+                            }
+                          >
+                            📋 Copy Last
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
-            ))}
+              )
+            })}
 
             {items.length === 0 && (
               <div className="text-center py-8">
