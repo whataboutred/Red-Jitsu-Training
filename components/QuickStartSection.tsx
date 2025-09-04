@@ -31,75 +31,98 @@ export default function QuickStartSection({ onAddExercise, unit }: QuickStartSec
     if (!userId) return
 
     try {
-      // Get recent exercises with their most recent working set from last 30 days
-      const { data: recentData } = await supabase
+      // Get recent workouts from last 30 days
+      const { data: workouts } = await supabase
+        .from('workouts')
+        .select('id, performed_at')
+        .eq('user_id', userId)
+        .gte('performed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .order('performed_at', { ascending: false })
+        .limit(50)
+
+      if (!workouts || workouts.length === 0) {
+        setRecentExercises([])
+        setLoading(false)
+        return
+      }
+
+      // Get all exercises from these workouts
+      const workoutIds = workouts.map(w => w.id)
+      const { data: workoutExercises } = await supabase
         .from('workout_exercises')
         .select(`
           exercise_id,
           display_name,
-          workouts!inner(performed_at, user_id),
-          sets(weight, reps, set_type, set_index)
+          workout_id,
+          id
         `)
-        .eq('workouts.user_id', userId)
-        .gte('workouts.performed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-        .order('workouts.performed_at', { ascending: false })
+        .in('workout_id', workoutIds)
 
-      if (recentData) {
-        // Group by exercise and track most recent workout for each
-        const exerciseMap = new Map<string, {
-          id: string
-          name: string
-          lastUsed: string
-          lastWorkingWeight: number
-          lastWorkingReps: number
-          useCount: number
-        }>()
-
-        recentData.forEach((item: any) => {
-          const exerciseId = item.exercise_id
-          const workoutDate = item.workouts.performed_at
-          
-          const existing = exerciseMap.get(exerciseId)
-          
-          // Only process if this is the most recent workout for this exercise or first time seeing it
-          if (!existing || new Date(workoutDate) > new Date(existing.lastUsed)) {
-            // Find the last working set from this workout
-            const workingSets = item.sets
-              ?.filter((set: any) => set.set_type === 'working' && set.weight > 0)
-              ?.sort((a: any, b: any) => b.set_index - a.set_index) // Most recent set first
-
-            const lastWorkingSet = workingSets?.[0]
-
-            exerciseMap.set(exerciseId, {
-              id: exerciseId,
-              name: item.display_name,
-              lastUsed: workoutDate,
-              lastWorkingWeight: lastWorkingSet ? Number(lastWorkingSet.weight) : 0,
-              lastWorkingReps: lastWorkingSet ? Number(lastWorkingSet.reps) : 0,
-              useCount: (existing?.useCount || 0) + 1
-            })
-          } else if (existing) {
-            // Just increment count for older workouts
-            existing.useCount++
-          }
-        })
-
-        // Convert to RecentExercise format
-        const exercises: RecentExercise[] = Array.from(exerciseMap.values())
-          .map(ex => ({
-            id: ex.id,
-            name: ex.name,
-            category: 'recent',
-            lastUsed: ex.lastUsed,
-            avgWeight: ex.lastWorkingWeight, // Now shows last working weight instead of average
-            avgReps: ex.lastWorkingReps, // Now shows last working reps instead of average
-            useCount: ex.useCount
-          }))
-          .sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime())
-          .slice(0, 6) // Top 6 recent exercises
-
-        setRecentExercises(exercises)
+      if (!workoutExercises || workoutExercises.length === 0) {
+        setRecentExercises([])
+        setLoading(false)
+        return
       }
+
+      // Map exercises to their workouts and get last working sets
+      const exerciseMap = new Map<string, {
+        id: string
+        name: string
+        lastUsed: string
+        lastWorkingWeight: number
+        lastWorkingReps: number
+        useCount: number
+      }>()
+
+      for (const workoutExercise of workoutExercises) {
+        const workout = workouts.find(w => w.id === workoutExercise.workout_id)
+        if (!workout) continue
+
+        const exerciseId = workoutExercise.exercise_id
+        const workoutDate = workout.performed_at
+
+        // Get sets for this exercise
+        const { data: sets } = await supabase
+          .from('sets')
+          .select('weight, reps, set_type, set_index')
+          .eq('workout_exercise_id', workoutExercise.id)
+          .order('set_index', { ascending: false })
+
+        const workingSets = sets?.filter(set => set.set_type === 'working' && set.weight > 0) || []
+        const lastWorkingSet = workingSets[0]
+
+        const existing = exerciseMap.get(exerciseId)
+
+        // Only update if this is more recent or first time seeing this exercise
+        if (!existing || new Date(workoutDate) > new Date(existing.lastUsed)) {
+          exerciseMap.set(exerciseId, {
+            id: exerciseId,
+            name: workoutExercise.display_name,
+            lastUsed: workoutDate,
+            lastWorkingWeight: lastWorkingSet ? Number(lastWorkingSet.weight) : 0,
+            lastWorkingReps: lastWorkingSet ? Number(lastWorkingSet.reps) : 0,
+            useCount: (existing?.useCount || 0) + 1
+          })
+        } else if (existing) {
+          existing.useCount++
+        }
+      }
+
+      // Convert to RecentExercise format
+      const exercises: RecentExercise[] = Array.from(exerciseMap.values())
+        .map(ex => ({
+          id: ex.id,
+          name: ex.name,
+          category: 'recent',
+          lastUsed: ex.lastUsed,
+          avgWeight: ex.lastWorkingWeight,
+          avgReps: ex.lastWorkingReps,
+          useCount: ex.useCount
+        }))
+        .sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime())
+        .slice(0, 6)
+
+      setRecentExercises(exercises)
     } catch (error) {
       console.error('Error loading recent exercises:', error)
     }
