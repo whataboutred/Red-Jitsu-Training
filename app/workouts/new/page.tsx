@@ -74,24 +74,33 @@ export default function EnhancedNewWorkoutPage() {
     if (!userId) return null
 
     try {
-      // Get the most recent workout that contains this exercise
-      const { data: recentWorkout } = await supabase
+      // Get the most recent workout exercises that match this exercise
+      const { data: workoutExercises, error } = await supabase
         .from('workout_exercises')
         .select(`
-          sets (weight, reps, set_type, set_index),
-          workouts!inner (performed_at, user_id)
+          exercise_id,
+          display_name,
+          workout_id,
+          sets!inner(weight, reps, set_type, set_index),
+          workouts!inner(performed_at, user_id)
         `)
         .eq('exercise_id', exerciseId)
         .eq('workouts.user_id', userId)
         .order('workouts.performed_at', { ascending: false })
-        .limit(1)
-        .maybeSingle()
 
-      if (recentWorkout?.sets && Array.isArray(recentWorkout.sets)) {
-        // Find the last working set (highest weight working set)
-        const workingSets = recentWorkout.sets
+      if (error) {
+        console.error('Error fetching last working set:', error)
+        return null
+      }
+
+      if (workoutExercises && workoutExercises.length > 0) {
+        // Get the most recent workout exercise (first in the ordered list)
+        const mostRecentExercise = workoutExercises[0]
+
+        // Find all working sets with weight > 0, sorted by set_index (descending for most recent)
+        const workingSets = mostRecentExercise.sets
           .filter((set: any) => set.set_type === 'working' && set.weight > 0)
-          .sort((a: any, b: any) => b.set_index - a.set_index) // Most recent set first
+          .sort((a: any, b: any) => b.set_index - a.set_index)
 
         if (workingSets.length > 0) {
           const lastWorkingSet = workingSets[0]
