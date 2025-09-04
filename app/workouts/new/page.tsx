@@ -40,6 +40,7 @@ export default function EnhancedNewWorkoutPage() {
   const [isTemplateCollapsed, setIsTemplateCollapsed] = useState(true)
   const [isExerciseSelectorCollapsed, setIsExerciseSelectorCollapsed] = useState(false)
   const [workoutMode, setWorkoutMode] = useState<'quick' | 'template' | 'custom'>('quick')
+  const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set())
 
   const [loadedTemplate, setLoadedTemplate] = useState<{ programName: string; dayName: string } | null>(null)
   const [programs, setPrograms] = useState<Program[]>([])
@@ -49,6 +50,64 @@ export default function EnhancedNewWorkoutPage() {
 
   const router = useRouter()
   const [demo, setDemo] = useState(false)
+
+  // Auto-collapse helper functions
+  const toggleExerciseExpanded = (exerciseId: string) => {
+    setExpandedExercises(prev => {
+      const newSet = new Set(prev)
+      if (newSet.has(exerciseId)) {
+        newSet.delete(exerciseId)
+      } else {
+        newSet.add(exerciseId)
+      }
+      return newSet
+    })
+  }
+
+  const expandExerciseAndCollapseOthers = (exerciseId: string) => {
+    setExpandedExercises(new Set([exerciseId]))
+  }
+
+  // Fetch last working set for an exercise from most recent workout
+  async function getLastWorkingSet(exerciseId: string): Promise<{ weight: number; reps: number } | null> {
+    const userId = await getActiveUserId()
+    if (!userId) return null
+
+    try {
+      // Get the most recent workout that contains this exercise
+      const { data: recentWorkout } = await supabase
+        .from('workout_exercises')
+        .select(`
+          sets (weight, reps, set_type, set_index),
+          workouts!inner (performed_at, user_id)
+        `)
+        .eq('exercise_id', exerciseId)
+        .eq('workouts.user_id', userId)
+        .order('workouts.performed_at', { ascending: false })
+        .limit(1)
+        .maybeSingle()
+
+      if (recentWorkout?.sets && Array.isArray(recentWorkout.sets)) {
+        // Find the last working set (highest weight working set)
+        const workingSets = recentWorkout.sets
+          .filter((set: any) => set.set_type === 'working' && set.weight > 0)
+          .sort((a: any, b: any) => b.set_index - a.set_index) // Most recent set first
+
+        if (workingSets.length > 0) {
+          const lastWorkingSet = workingSets[0]
+          return {
+            weight: Number(lastWorkingSet.weight),
+            reps: Number(lastWorkingSet.reps)
+          }
+        }
+      }
+
+      return null
+    } catch (error) {
+      console.error('Error fetching last working set:', error)
+      return null
+    }
+  }
 
   useEffect(() => {
     ;(async () => {
@@ -92,19 +151,39 @@ export default function EnhancedNewWorkoutPage() {
     })()
   }, [])
 
-  function addExercise(id: string, avgWeight?: number, avgReps?: number) {
+  async function addExercise(id: string, avgWeight?: number, avgReps?: number) {
     const ex = allExercises.find(e => e.id === id)
     if (!ex) return
     
-    // Smart defaults based on recent usage
-    const smartSets = avgWeight && avgReps ? [{ 
-      weight: avgWeight, 
-      reps: avgReps, 
-      set_type: 'working' as const 
-    }] : []
+    // Try to get last working set data for this specific exercise
+    let smartSets: Array<{ weight: number; reps: number; set_type: 'warmup' | 'working' }> = []
+    
+    // First priority: Use provided avgWeight/avgReps (from QuickStart)
+    if (avgWeight && avgReps) {
+      smartSets = [{ 
+        weight: avgWeight, 
+        reps: avgReps, 
+        set_type: 'working' as const 
+      }]
+    } else {
+      // Second priority: Fetch from last workout's working set
+      const lastWorkingSet = await getLastWorkingSet(ex.id)
+      if (lastWorkingSet) {
+        smartSets = [{ 
+          weight: lastWorkingSet.weight, 
+          reps: lastWorkingSet.reps, 
+          set_type: 'working' as const 
+        }]
+      } else {
+        // Default: Empty set
+        smartSets = [{ weight: 0, reps: 0, set_type: 'working' as const }]
+      }
+    }
     
     setItems(p => [...p, { id: ex.id, name: ex.name, sets: smartSets }])
     setIsExerciseSelectorCollapsed(true) // Collapse after adding
+    // Auto-expand the new exercise and collapse others
+    expandExerciseAndCollapseOthers(ex.id)
   }
 
   async function addCustomExercise() {
@@ -121,9 +200,11 @@ export default function EnhancedNewWorkoutPage() {
     if (error || !ins) { alert('Could not create exercise.'); return }
     
     setAllExercises(prev => [...prev, ins as Exercise])
-    setItems(prev => [...prev, { id: (ins as Exercise).id, name: (ins as Exercise).name, sets: [] }])
+    setItems(prev => [...prev, { id: (ins as Exercise).id, name: (ins as Exercise).name, sets: [{ weight: 0, reps: 0, set_type: 'working' }] }])
     setSearch('')
     setIsExerciseSelectorCollapsed(true)
+    // Auto-expand the new exercise and collapse others
+    expandExerciseAndCollapseOthers((ins as Exercise).id)
   }
 
   async function fetchDaysForProgram(programId: string) {
@@ -147,7 +228,7 @@ export default function EnhancedNewWorkoutPage() {
       if (!ok) return
     }
 
-    const built = tex.map(t => ({
+    const built = tex.map((t) => ({
       id: t.exercise_id,
       name: t.display_name,
       sets: Array.from({ length: Math.max(1, t.default_sets||1) }, () => ({
@@ -160,6 +241,10 @@ export default function EnhancedNewWorkoutPage() {
     setPresetTitle('Other')
     setCustomTitle(day.name)
     setLoadedTemplate({ programName: program.name, dayName: day.name })
+    // Auto-expand first exercise only
+    if (built.length > 0) {
+      setExpandedExercises(new Set([built[0].id]))
+    }
   }
 
   function resolveTitle(): string | null {
@@ -179,13 +264,16 @@ export default function EnhancedNewWorkoutPage() {
     
     // Find the same exercise to get recent data
     const lastSet = exercise.sets[exercise.sets.length - 1]
-    const smartSets = lastSet ? [{ ...lastSet }] : []
+    const smartSets = lastSet ? [{ ...lastSet }] : [{ weight: 0, reps: 0, set_type: 'working' as const }]
     
+    const newExerciseId = `${exercise.id}_copy_${Date.now()}`
     setItems(p => [...p, { 
-      id: exercise.id, 
+      id: newExerciseId, 
       name: exercise.name + ' (Copy)', 
-      sets: smartSets 
+      sets: smartSets
     }])
+    // Auto-expand the new exercise and collapse others
+    expandExerciseAndCollapseOthers(newExerciseId)
   }
 
   // Enhanced save function with better UX
@@ -243,13 +331,28 @@ export default function EnhancedNewWorkoutPage() {
 
   const canSave = useMemo(() => items.some(i => i.sets.length), [items])
 
+  function removeExercise(exerciseId: string) {
+    setItems(prev => prev.filter(item => item.id !== exerciseId))
+    setExpandedExercises(prev => {
+      const newSet = new Set(prev)
+      newSet.delete(exerciseId)
+      return newSet
+    })
+  }
+
+  function updateSets(exerciseId: string, newSets: Array<{ weight: number; reps: number; set_type: 'warmup' | 'working' }>) {
+    setItems(prev => prev.map(item =>
+      item.id === exerciseId ? { ...item, sets: newSets } : item
+    ))
+  }
+
   return (
-    <div className="relative min-h-screen bg-black pb-20">
+    <div className="relative min-h-screen bg-black">
       <BackgroundLogo />
       <Nav />
-      <main className="relative z-10 max-w-3xl mx-auto p-4 space-y-4">
+      <main className="relative z-10 max-w-4xl mx-auto p-4 space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl">💪 New Workout</h1>
+          <h1 className="text-2xl font-bold">💪 New Workout</h1>
           <div className="flex gap-2">
             <button 
               className={`toggle text-xs ${workoutMode === 'quick' ? 'bg-brand-red/20 border-brand-red' : ''}`}
@@ -341,58 +444,88 @@ export default function EnhancedNewWorkoutPage() {
           </div>
         )}
 
-        {/* Workout Details - Collapsible */}
+        {/* Workout Details */}
         <div className="card">
-          <div className="font-medium mb-3">📝 Workout Details</div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <label className="block">
-              <div className="mb-1 text-sm text-white/80">Title</div>
-              <select
-                className="input w-full"
-                value={presetTitle}
-                onChange={(e) => setPresetTitle(e.target.value as PresetTitle)}
-              >
-                <option>Upper</option>
-                <option>Lower</option>
-                <option>Push</option>
-                <option>Pull</option>
-                <option>Legs</option>
-                <option>Other</option>
-              </select>
-            </label>
-            
-            {presetTitle === 'Other' && (
-              <label className="block">
-                <div className="mb-1 text-sm text-white/80">Custom title</div>
-                <input
-                  className="input w-full"
-                  placeholder="e.g., Upper A, Full Body"
-                  value={customTitle}
-                  onChange={(e) => setCustomTitle(e.target.value)}
-                />
+          <div className="font-medium mb-4">📝 Workout Details</div>
+          
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+            <div>
+              <label className="block text-sm text-white/80 font-medium mb-2">
+                Workout Date & Time
               </label>
-            )}
-
-            <label className="block">
-              <div className="mb-1 text-sm text-white/80">Date & Time</div>
               <input
                 type="datetime-local"
                 className="input w-full"
                 value={performedAt}
-                onChange={(e) => setPerformedAt(e.target.value)}
+                onChange={e => setPerformedAt(e.target.value)}
               />
-            </label>
+            </div>
+            <div>
+              <label className="block text-sm text-white/80 font-medium mb-2">
+                Units
+              </label>
+              <div className="flex gap-2">
+                <button
+                  className={`toggle flex-1 ${unit === 'lb' ? 'bg-brand-red/20 border-brand-red text-white' : ''}`}
+                  onClick={() => setUnit('lb')}
+                >
+                  Pounds
+                </button>
+                <button
+                  className={`toggle flex-1 ${unit === 'kg' ? 'bg-brand-red/20 border-brand-red text-white' : ''}`}
+                  onClick={() => setUnit('kg')}
+                >
+                  Kilograms
+                </button>
+              </div>
+            </div>
           </div>
 
-          <label className="block mt-3">
-            <div className="mb-1 text-sm text-white/80">Notes (optional)</div>
-            <input
-              className="input w-full"
-              placeholder="How are you feeling? Any goals for today?"
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm text-white/80 font-medium mb-2">
+                Workout Type
+              </label>
+              <select
+                className="input w-full"
+                value={presetTitle}
+                onChange={e => setPresetTitle(e.target.value as PresetTitle)}
+              >
+                <option value="Upper">Upper Body</option>
+                <option value="Lower">Lower Body</option>
+                <option value="Push">Push Day</option>
+                <option value="Pull">Pull Day</option>
+                <option value="Legs">Leg Day</option>
+                <option value="Other">Custom</option>
+              </select>
+            </div>
+            {presetTitle === 'Other' && (
+              <div>
+                <label className="block text-sm text-white/80 font-medium mb-2">
+                  Custom Title
+                </label>
+                <input
+                  type="text"
+                  className="input w-full"
+                  value={customTitle}
+                  onChange={e => setCustomTitle(e.target.value)}
+                  placeholder="Enter custom workout name"
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="mt-4">
+            <label className="block text-sm text-white/80 font-medium mb-2">
+              Notes (Optional)
+            </label>
+            <textarea
+              className="input w-full h-20 resize-none"
               value={note}
-              onChange={(e) => setNote(e.target.value)}
+              onChange={e => setNote(e.target.value)}
+              placeholder="How did the workout feel? Any observations..."
             />
-          </label>
+          </div>
         </div>
 
         {/* Exercise Selector */}
@@ -406,124 +539,150 @@ export default function EnhancedNewWorkoutPage() {
           onToggleCollapse={() => setIsExerciseSelectorCollapsed(!isExerciseSelectorCollapsed)}
         />
 
-        {/* Selected Exercises + Sets */}
-        <div className="space-y-4">
-          {items.map((it, idx) => (
-            <div key={idx} className="card">
-              <div className="flex items-center justify-between mb-4">
-                <div className="font-medium text-lg">{it.name}</div>
-                <div className="flex items-center gap-2">
-                  <button 
-                    className="toggle text-xs"
-                    onClick={() => addSameExercise(idx)}
-                    title="Add same exercise"
+        {/* Current Exercises */}
+        <div className="card">
+          <div className="font-medium mb-4">🏋️‍♀️ Current Exercises</div>
+
+          <div className="space-y-4">
+            {items.map((item, idx) => {
+              const isExpanded = expandedExercises.has(item.id)
+              return (
+                <div key={item.id} className="bg-black/30 rounded-2xl p-4">
+                  <div 
+                    className="flex items-center justify-between mb-4 cursor-pointer"
+                    onClick={() => toggleExerciseExpanded(item.id)}
                   >
-                    ➕ Same
-                  </button>
-                  <button 
-                    className="toggle text-red-400" 
-                    onClick={() => setItems(prev => prev.filter((_, i) => i !== idx))}
-                  >
-                    Remove
-                  </button>
+                    <div className="flex items-center gap-3">
+                      <span className="text-lg">{isExpanded ? '▼' : '▶'}</span>
+                      <h3 className="font-semibold text-lg text-white/90">{item.name}</h3>
+                      <span className="text-sm text-white/60">
+                        {item.sets.length} set{item.sets.length !== 1 ? 's' : ''}
+                      </span>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <button 
+                        className="toggle text-xs"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          addSameExercise(idx)
+                        }}
+                        title="Add same exercise"
+                      >
+                        ➕ Same
+                      </button>
+                      <button
+                        className="toggle text-sm px-3 py-1 text-red-400 hover:bg-red-500/20"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          removeExercise(item.id)
+                        }}
+                      >
+                        Remove
+                      </button>
+                    </div>
+                  </div>
+                  
+                  {isExpanded && (
+                    <div className="space-y-3">
+                      {item.sets.map((set, setIndex) => (
+                        <EnhancedSetRow
+                          key={setIndex}
+                          initial={set}
+                          setIndex={setIndex}
+                          unitLabel={unit}
+                          previousSet={setIndex > 0 ? item.sets[setIndex - 1] : undefined}
+                          onChange={(updatedSet) => {
+                            const newSets = [...item.sets]
+                            newSets[setIndex] = updatedSet
+                            updateSets(item.id, newSets)
+                          }}
+                          onRemove={() => {
+                            const newSets = item.sets.filter((_, i) => i !== setIndex)
+                            updateSets(item.id, newSets)
+                          }}
+                          onCopyPrevious={setIndex > 0 ? () => {
+                            const newSets = [...item.sets]
+                            newSets[setIndex] = { ...item.sets[setIndex - 1] }
+                            updateSets(item.id, newSets)
+                          } : undefined}
+                        />
+                      ))}
+                      
+                      <div className="flex gap-2 mt-4">
+                        <button 
+                          className="btn flex-1" 
+                          onClick={() => {
+                            const newSets = [...item.sets, { weight: 0, reps: 0, set_type: 'working' as const }]
+                            updateSets(item.id, newSets)
+                          }}
+                        >
+                          + Add Set
+                        </button>
+                        {item.sets.length > 0 && (
+                          <button 
+                            className="toggle flex-1" 
+                            onClick={() => {
+                              const lastSet = item.sets[item.sets.length - 1]
+                              const newSets = [...item.sets, { ...lastSet }]
+                              updateSets(item.id, newSets)
+                            }}
+                          >
+                            📋 Copy Last
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+
+            {items.length === 0 && (
+              <div className="text-center py-8">
+                <div className="text-4xl mb-3">💪</div>
+                <div className="font-medium mb-2">No exercises added yet</div>
+                <div className="text-white/70 mb-4">Add exercises to build your workout</div>
+                <button
+                  className="btn"
+                  onClick={() => setIsExerciseSelectorCollapsed(false)}
+                >
+                  Add First Exercise
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
+      </main>
+
+        {/* Save Section */}
+        {items.length > 0 && (
+          <div className="sticky bottom-4 bg-black/90 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
+            <div className="flex items-center justify-between mb-2">
+              <div>
+                <div className="font-medium text-white/90">{resolveTitle() || 'Untitled Workout'}</div>
+                <div className="text-sm text-white/70">
+                  {items.length} exercise{items.length !== 1 ? 's' : ''} • {items.reduce((acc, item) => acc + item.sets.length, 0)} sets
                 </div>
               </div>
-
-              <div className="space-y-3">
-                {it.sets.map((s, si) => (
-                  <EnhancedSetRow
-                    key={si}
-                    unitLabel={unit}
-                    setIndex={si}
-                    initial={s}
-                    previousSet={si > 0 ? it.sets[si - 1] : undefined}
-                    onChange={(v) =>
-                      setItems(prev =>
-                        prev.map((p, i) =>
-                          i === idx ? { ...p, sets: p.sets.map((ps, psi) => (psi === si ? v : ps)) } : p
-                        )
-                      )
-                    }
-                    onRemove={() =>
-                      setItems(prev =>
-                        prev.map((p, i) =>
-                          i === idx ? { ...p, sets: p.sets.filter((_, psi) => psi !== si) } : p
-                        )
-                      )
-                    }
-                    onCopyPrevious={si > 0 ? () => {
-                      const prevSet = it.sets[si - 1]
-                      setItems(prev =>
-                        prev.map((p, i) =>
-                          i === idx ? { ...p, sets: p.sets.map((ps, psi) => (psi === si ? { ...prevSet } : ps)) } : p
-                        )
-                      )
-                    } : undefined}
-                  />
-                ))}
-              </div>
-
-              <div className="flex gap-2 mt-4">
-                <button 
-                  className="btn flex-1" 
-                  onClick={() =>
-                    setItems(prev =>
-                      prev.map((p, i) => i === idx ? { ...p, sets: [...p.sets, { weight: 0, reps: 0, set_type: 'working' }] } : p)
-                    )
-                  }
+              <div className="flex gap-3">
+                <button
+                  className="toggle px-6"
+                  onClick={saveOffline}
+                  title="Save offline"
                 >
-                  + Add Set
+                  📱 Offline
                 </button>
-                {it.sets.length > 0 && (
-                  <button 
-                    className="toggle flex-1" 
-                    onClick={() =>
-                      setItems(prev =>
-                        prev.map((p, i) => i === idx ? { ...p, sets: [...p.sets, { ...p.sets[p.sets.length-1] }] } : p)
-                      )
-                    }
-                  >
-                    📋 Copy Last
-                  </button>
-                )}
+                <button
+                  className="btn disabled:opacity-50"
+                  onClick={saveOnline}
+                  disabled={!canSave}
+                >
+                  💾 Save Workout
+                </button>
               </div>
-            </div>
-          ))}
-        </div>
-
-        {items.length === 0 && (
-          <div className="card text-center py-8">
-            <div className="text-white/60 mb-4">
-              💪 Ready to start your workout?
-            </div>
-            <div className="text-sm text-white/50">
-              Add exercises above to begin tracking your sets!
             </div>
           </div>
         )}
-      </main>
-
-      {/* Sticky Save Button */}
-      {items.length > 0 && (
-        <div className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-black via-black/95 to-transparent backdrop-blur border-t border-white/10 p-4">
-          <div className="max-w-3xl mx-auto flex gap-2">
-            <button 
-              className="btn flex-1 py-4 text-lg font-medium disabled:opacity-50" 
-              disabled={!canSave} 
-              onClick={saveOnline}
-            >
-              💾 Save Workout ({items.reduce((acc, item) => acc + item.sets.length, 0)} sets)
-            </button>
-            <button 
-              className="toggle px-6" 
-              onClick={saveOffline}
-              title="Save offline"
-            >
-              📱
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   )
 }

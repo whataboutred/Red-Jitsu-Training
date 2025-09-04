@@ -30,69 +30,78 @@ export default function QuickStartSection({ onAddExercise, unit }: QuickStartSec
     const userId = await getActiveUserId()
     if (!userId) return
 
-    // Get recent exercises with usage stats from last 30 days
-    const { data: recentData } = await supabase
-      .from('workout_exercises')
-      .select(`
-        exercise_id,
-        display_name,
-        workouts!inner(performed_at, user_id),
-        sets(weight, reps)
-      `)
-      .eq('workouts.user_id', userId)
-      .gte('workouts.performed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
-      .order('workouts.performed_at', { ascending: false })
+    try {
+      // Get recent exercises with their most recent working set from last 30 days
+      const { data: recentData } = await supabase
+        .from('workout_exercises')
+        .select(`
+          exercise_id,
+          display_name,
+          workouts!inner(performed_at, user_id),
+          sets(weight, reps, set_type, set_index)
+        `)
+        .eq('workouts.user_id', userId)
+        .gte('workouts.performed_at', new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString())
+        .order('workouts.performed_at', { ascending: false })
 
-    if (recentData) {
-      // Process and aggregate the data
-      type ExerciseData = {
-        id: string
-        name: string
-        lastUsed: string
-        weights: number[]
-        reps: number[]
-        count: number
-      }
-      const exerciseMap = new Map<string, ExerciseData>()
+      if (recentData) {
+        // Group by exercise and track most recent workout for each
+        const exerciseMap = new Map<string, {
+          id: string
+          name: string
+          lastUsed: string
+          lastWorkingWeight: number
+          lastWorkingReps: number
+          useCount: number
+        }>()
 
-      recentData.forEach((item: any) => {
-        const exerciseId = item.exercise_id
-        const existing = exerciseMap.get(exerciseId) || {
-          id: exerciseId,
-          name: item.display_name,
-          lastUsed: item.workouts.performed_at,
-          weights: [] as number[],
-          reps: [] as number[],
-          count: 0
-        }
+        recentData.forEach((item: any) => {
+          const exerciseId = item.exercise_id
+          const workoutDate = item.workouts.performed_at
+          
+          const existing = exerciseMap.get(exerciseId)
+          
+          // Only process if this is the most recent workout for this exercise or first time seeing it
+          if (!existing || new Date(workoutDate) > new Date(existing.lastUsed)) {
+            // Find the last working set from this workout
+            const workingSets = item.sets
+              ?.filter((set: any) => set.set_type === 'working' && set.weight > 0)
+              ?.sort((a: any, b: any) => b.set_index - a.set_index) // Most recent set first
 
-        existing.count++
-        existing.lastUsed = item.workouts.performed_at
-        
-        // Collect weights and reps from working sets
-        item.sets?.forEach((set: any) => {
-          if (set.weight > 0) existing.weights.push(Number(set.weight))
-          if (set.reps > 0) existing.reps.push(Number(set.reps))
+            const lastWorkingSet = workingSets?.[0]
+
+            exerciseMap.set(exerciseId, {
+              id: exerciseId,
+              name: item.display_name,
+              lastUsed: workoutDate,
+              lastWorkingWeight: lastWorkingSet ? Number(lastWorkingSet.weight) : 0,
+              lastWorkingReps: lastWorkingSet ? Number(lastWorkingSet.reps) : 0,
+              useCount: (existing?.useCount || 0) + 1
+            })
+          } else if (existing) {
+            // Just increment count for older workouts
+            existing.useCount++
+          }
         })
 
-        exerciseMap.set(exerciseId, existing)
-      })
+        // Convert to RecentExercise format
+        const exercises: RecentExercise[] = Array.from(exerciseMap.values())
+          .map(ex => ({
+            id: ex.id,
+            name: ex.name,
+            category: 'recent',
+            lastUsed: ex.lastUsed,
+            avgWeight: ex.lastWorkingWeight, // Now shows last working weight instead of average
+            avgReps: ex.lastWorkingReps, // Now shows last working reps instead of average
+            useCount: ex.useCount
+          }))
+          .sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime())
+          .slice(0, 6) // Top 6 recent exercises
 
-      // Convert to array and calculate averages
-      const exercises: RecentExercise[] = Array.from(exerciseMap.values())
-        .map(ex => ({
-          id: ex.id,
-          name: ex.name,
-          category: 'recent',
-          lastUsed: ex.lastUsed,
-          avgWeight: ex.weights.length > 0 ? Math.round(ex.weights.reduce((a, b) => a + b, 0) / ex.weights.length) : 0,
-          avgReps: ex.reps.length > 0 ? Math.round(ex.reps.reduce((a, b) => a + b, 0) / ex.reps.length) : 0,
-          useCount: ex.count
-        }))
-        .sort((a, b) => new Date(b.lastUsed).getTime() - new Date(a.lastUsed).getTime())
-        .slice(0, 6) // Top 6 recent exercises
-
-      setRecentExercises(exercises)
+        setRecentExercises(exercises)
+      }
+    } catch (error) {
+      console.error('Error loading recent exercises:', error)
     }
     setLoading(false)
   }
@@ -134,7 +143,7 @@ export default function QuickStartSection({ onAddExercise, unit }: QuickStartSec
             <div className="text-sm text-white/60 mt-1 flex items-center gap-2">
               {ex.avgWeight > 0 && (
                 <span className="bg-brand-red/20 text-brand-red px-2 py-1 rounded text-xs">
-                  {ex.avgWeight} {unit}
+                  Last: {ex.avgWeight} {unit}
                 </span>
               )}
               {ex.avgReps > 0 && (

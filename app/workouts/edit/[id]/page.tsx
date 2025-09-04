@@ -36,6 +36,13 @@ export default function EnhancedEditWorkoutPage() {
   const [isExerciseSelectorCollapsed, setIsExerciseSelectorCollapsed] = useState(true)
   const [saving, setSaving] = useState(false)
   const [expandedExercises, setExpandedExercises] = useState<Set<string>>(new Set())
+  const [draggedSetIndex, setDraggedSetIndex] = useState<number | null>(null)
+  
+  // Save as template state
+  const [showTemplateModal, setShowTemplateModal] = useState(false)
+  const [templateName, setTemplateName] = useState('')
+  const [selectedProgramId, setSelectedProgramId] = useState('')
+  const [programs, setPrograms] = useState<Array<{id: string; name: string}>>([])
 
   const [loading, setLoading] = useState(true)
   const [demo, setDemo] = useState(false)
@@ -82,6 +89,14 @@ export default function EnhancedEditWorkoutPage() {
       // Load exercises
       const { data: ex } = await supabase.from('exercises').select('id,name,category').order('name')
       if (ex) setAllExercises(ex as Exercise[])
+
+      // Load programs for template saving
+      const { data: progs } = await supabase
+        .from('programs')
+        .select('id, name')
+        .eq('user_id', userId)
+        .order('name')
+      if (progs) setPrograms(progs)
 
       // Load existing workout data
       await loadWorkoutData()
@@ -238,6 +253,104 @@ export default function EnhancedEditWorkoutPage() {
     setItems(prev => prev.map(item =>
       item.id === exerciseId ? { ...item, sets: newSets } : item
     ))
+  }
+
+  // Drag and drop functions for sets
+  function handleSetDragStart(e: React.DragEvent, setIndex: number) {
+    setDraggedSetIndex(setIndex)
+    e.dataTransfer.effectAllowed = 'move'
+    e.dataTransfer.setData('text/html', (e.currentTarget as HTMLElement).outerHTML)
+    ;(e.currentTarget as HTMLElement).style.opacity = '0.5'
+  }
+
+  function handleSetDragEnd(e: React.DragEvent) {
+    ;(e.currentTarget as HTMLElement).style.opacity = '1'
+    setDraggedSetIndex(null)
+  }
+
+  function handleSetDragOver(e: React.DragEvent) {
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+  }
+
+  function handleSetDrop(e: React.DragEvent, exerciseId: string, dropIndex: number) {
+    e.preventDefault()
+    
+    if (draggedSetIndex === null || draggedSetIndex === dropIndex) return
+
+    const exercise = items.find(item => item.id === exerciseId)
+    if (!exercise) return
+
+    const newSets = [...exercise.sets]
+    const draggedSet = newSets[draggedSetIndex]
+    
+    // Remove the dragged set
+    newSets.splice(draggedSetIndex, 1)
+    
+    // Insert at new position
+    const adjustedDropIndex = draggedSetIndex < dropIndex ? dropIndex - 1 : dropIndex
+    newSets.splice(adjustedDropIndex, 0, draggedSet)
+    
+    updateSets(exerciseId, newSets)
+  }
+
+  // Save workout as template
+  async function saveAsTemplate() {
+    if (!templateName.trim() || !selectedProgramId) {
+      alert('Please enter a template name and select a program')
+      return
+    }
+
+    const userId = await getActiveUserId()
+    if (!userId) return
+
+    try {
+      // Create a new program day
+      const { data: programDay, error: dayError } = await supabase
+        .from('program_days')
+        .insert({
+          program_id: selectedProgramId,
+          name: templateName.trim(),
+          dows: [], // Can be set later
+          order_index: 0 // Will be updated based on existing days
+        })
+        .select()
+        .single()
+
+      if (dayError || !programDay) {
+        throw new Error('Failed to create program day')
+      }
+
+      // Save each exercise as a template exercise
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+        const avgSets = item.sets.length
+        const workingSets = item.sets.filter(s => s.set_type === 'working')
+        const avgReps = workingSets.length > 0 
+          ? Math.round(workingSets.reduce((sum, s) => sum + s.reps, 0) / workingSets.length)
+          : 0
+
+        await supabase
+          .from('template_exercises')
+          .insert({
+            program_day_id: programDay.id,
+            exercise_id: item.id,
+            display_name: item.name,
+            default_sets: avgSets,
+            default_reps: avgReps,
+            set_type: 'working',
+            order_index: i
+          })
+      }
+
+      alert(`Template "${templateName}" saved successfully!`)
+      setShowTemplateModal(false)
+      setTemplateName('')
+      setSelectedProgramId('')
+    } catch (error) {
+      console.error('Error saving template:', error)
+      alert('Failed to save template. Please try again.')
+    }
   }
 
   async function handleSave() {
@@ -573,27 +686,42 @@ export default function EnhancedEditWorkoutPage() {
                   {isExpanded && (
                     <div className="space-y-3">
                       {item.sets.map((set, setIndex) => (
-                        <EnhancedSetRow
+                        <div
                           key={setIndex}
-                          initial={set}
-                          setIndex={setIndex}
-                          unitLabel={unit}
-                          previousSet={setIndex > 0 ? item.sets[setIndex - 1] : undefined}
-                          onChange={(updatedSet) => {
-                            const newSets = [...item.sets]
-                            newSets[setIndex] = updatedSet
-                            updateSets(item.id, newSets)
-                          }}
-                          onRemove={() => {
-                            const newSets = item.sets.filter((_, i) => i !== setIndex)
-                            updateSets(item.id, newSets)
-                          }}
-                          onCopyPrevious={setIndex > 0 ? () => {
-                            const newSets = [...item.sets]
-                            newSets[setIndex] = { ...item.sets[setIndex - 1] }
-                            updateSets(item.id, newSets)
-                          } : undefined}
-                        />
+                          draggable
+                          onDragStart={(e) => handleSetDragStart(e, setIndex)}
+                          onDragEnd={handleSetDragEnd}
+                          onDragOver={handleSetDragOver}
+                          onDrop={(e) => handleSetDrop(e, item.id, setIndex)}
+                          className={`relative ${draggedSetIndex === setIndex ? 'opacity-50' : ''}`}
+                        >
+                          {/* Drag Handle */}
+                          <div className="absolute left-2 top-1/2 transform -translate-y-1/2 z-10 cursor-move text-white/40 hover:text-white/60">
+                            ⋮⋮
+                          </div>
+                          <div className="ml-6">
+                            <EnhancedSetRow
+                              initial={set}
+                              setIndex={setIndex}
+                              unitLabel={unit}
+                              previousSet={setIndex > 0 ? item.sets[setIndex - 1] : undefined}
+                              onChange={(updatedSet) => {
+                                const newSets = [...item.sets]
+                                newSets[setIndex] = updatedSet
+                                updateSets(item.id, newSets)
+                              }}
+                              onRemove={() => {
+                                const newSets = item.sets.filter((_, i) => i !== setIndex)
+                                updateSets(item.id, newSets)
+                              }}
+                              onCopyPrevious={setIndex > 0 ? () => {
+                                const newSets = [...item.sets]
+                                newSets[setIndex] = { ...item.sets[setIndex - 1] }
+                                updateSets(item.id, newSets)
+                              } : undefined}
+                            />
+                          </div>
+                        </div>
                       ))}
                       
                       <div className="flex gap-2 mt-4">
@@ -653,6 +781,13 @@ export default function EnhancedEditWorkoutPage() {
                 </div>
               </div>
               <div className="flex gap-3">
+                <button
+                  className="toggle px-4"
+                  onClick={() => setShowTemplateModal(true)}
+                  title="Save workout as template"
+                >
+                  📋 Save as Template
+                </button>
                 <Link href="/history" className="toggle px-6">
                   Cancel
                 </Link>
@@ -668,6 +803,72 @@ export default function EnhancedEditWorkoutPage() {
           </div>
         )}
       </main>
+
+      {/* Save as Template Modal */}
+      {showTemplateModal && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-gray-900 rounded-2xl p-6 w-full max-w-md border border-white/10">
+            <h2 className="text-xl font-bold mb-4">💾 Save as Template</h2>
+            
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  Template Name
+                </label>
+                <input
+                  type="text"
+                  className="input w-full"
+                  value={templateName}
+                  onChange={(e) => setTemplateName(e.target.value)}
+                  placeholder="e.g., Upper Body Strength"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-white/80 mb-2">
+                  Program
+                </label>
+                <select
+                  className="input w-full"
+                  value={selectedProgramId}
+                  onChange={(e) => setSelectedProgramId(e.target.value)}
+                >
+                  <option value="">Select a program...</option>
+                  {programs.map(program => (
+                    <option key={program.id} value={program.id}>
+                      {program.name}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="text-sm text-white/60">
+                This will create a new template in your selected program with {items.length} exercise{items.length !== 1 ? 's' : ''}.
+              </div>
+            </div>
+
+            <div className="flex gap-3 mt-6">
+              <button
+                className="toggle flex-1"
+                onClick={() => {
+                  setShowTemplateModal(false)
+                  setTemplateName('')
+                  setSelectedProgramId('')
+                }}
+              >
+                Cancel
+              </button>
+              <button
+                className="btn flex-1"
+                onClick={saveAsTemplate}
+                disabled={!templateName.trim() || !selectedProgramId}
+              >
+                Save Template
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }
