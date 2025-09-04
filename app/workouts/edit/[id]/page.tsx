@@ -42,7 +42,7 @@ export default function EnhancedEditWorkoutPage() {
   const [showTemplateModal, setShowTemplateModal] = useState(false)
   const [templateName, setTemplateName] = useState('')
   const [selectedProgramId, setSelectedProgramId] = useState('')
-  const [programs, setPrograms] = useState<Array<{id: string; name: string}>([])
+  const [programs, setPrograms] = useState<Array<{id: string; name: string}>>([])
 
   // Template loading state
   const [showTemplateLoader, setShowTemplateLoader] = useState(false)
