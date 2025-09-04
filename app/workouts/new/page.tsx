@@ -81,80 +81,67 @@ export default function EnhancedNewWorkoutPage() {
     try {
       console.log('🔎 Querying database for exercise:', exerciseId)
       
-      // Try a different approach - get workout exercises first, then join with workouts
-      const { data: workoutExercises, error } = await supabase
-        .from('workout_exercises')
-        .select(`
-          id,
-          exercise_id,
-          display_name,
-          workout_id,
-          workouts!inner(performed_at, user_id)
-        `)
-        .eq('exercise_id', exerciseId)
-        .eq('workouts.user_id', userId)
-        .order('workouts.performed_at', { ascending: false })
-        .limit(5) // Get last 5 workouts to be safe
+      // Simplified approach: First get workouts by user, then filter by exercise
+      const { data: workouts, error: workoutsError } = await supabase
+        .from('workouts')
+        .select('id, performed_at')
+        .eq('user_id', userId)
+        .order('performed_at', { ascending: false })
+        .limit(20) // Get recent workouts
 
-      console.log('📊 Database query result (workout_exercises):', { 
-        workoutExercises, 
-        error, 
-        count: workoutExercises?.length 
-      })
+      console.log('📊 Found workouts:', { count: workouts?.length, error: workoutsError })
 
-      if (error) {
-        console.error('❌ Supabase query error:', error)
+      if (workoutsError || !workouts || workouts.length === 0) {
+        console.log('❌ No workouts found for user')
         return null
       }
 
-      if (workoutExercises && workoutExercises.length > 0) {
-        console.log('✅ Found workout exercises, now getting sets...')
-        
-        // Get the most recent workout exercise
-        const mostRecentExercise = workoutExercises[0]
-        console.log('📋 Most recent exercise:', mostRecentExercise)
+      // Now look for this exercise in recent workouts
+      for (const workout of workouts) {
+        const { data: workoutExercise, error: exerciseError } = await supabase
+          .from('workout_exercises')
+          .select('id')
+          .eq('workout_id', workout.id)
+          .eq('exercise_id', exerciseId)
+          .single()
 
-        // Now get the sets for this specific workout exercise (use the workout_exercises.id)
+        if (exerciseError || !workoutExercise) {
+          console.log(`⚠️ Exercise ${exerciseId} not found in workout ${workout.id}`)
+          continue
+        }
+
+        console.log('✅ Found exercise in workout:', workout.id)
+
+        // Get sets for this exercise
         const { data: sets, error: setsError } = await supabase
           .from('sets')
           .select('weight, reps, set_type, set_index')
-          .eq('workout_exercise_id', mostRecentExercise.id)
-          .order('set_index', { ascending: false })
+          .eq('workout_exercise_id', workoutExercise.id)
+          .order('set_index', { ascending: false }) // Get last set first
 
-        console.log('🏋️ Sets query result:', { sets, setsError })
+        console.log('🏋️ Sets found:', { count: sets?.length, error: setsError })
 
-        if (setsError) {
-          console.error('❌ Sets query error:', setsError)
-          return null
+        if (setsError || !sets || sets.length === 0) {
+          console.log('⚠️ No sets found, trying next workout')
+          continue
         }
 
-        if (sets && sets.length > 0) {
-          // Find working sets with weight > 0
-          const workingSets = sets
-            .filter((set: any) => set.set_type === 'working' && set.weight > 0)
-
-          console.log('🏋️ Working sets found:', workingSets)
-
-          if (workingSets.length > 0) {
-            const lastWorkingSet = workingSets[0] // Already sorted by set_index desc
-            console.log('🎯 Using last working set:', lastWorkingSet)
-            const result = {
-              weight: Number(lastWorkingSet.weight),
-              reps: Number(lastWorkingSet.reps)
-            }
-            console.log('✨ Returning weight suggestion:', result)
-            return result
-          } else {
-            console.log('⚠️ No working sets with weight > 0 found')
+        // Find the last working set with weight > 0
+        const workingSet = sets.find(set => set.set_type === 'working' && set.weight > 0)
+        
+        if (workingSet) {
+          const result = {
+            weight: Number(workingSet.weight),
+            reps: Number(workingSet.reps)
           }
+          console.log('✨ Found last working set:', result)
+          return result
         } else {
-          console.log('⚠️ No sets found for this workout exercise')
+          console.log('⚠️ No working sets with weight > 0 in this workout')
         }
-      } else {
-        console.log('⚠️ No workout exercises found for this exercise')
       }
 
-      console.log('❌ No weight suggestion available, returning null')
+      console.log('❌ No working sets found in any recent workout')
       return null
     } catch (error) {
       console.error('💥 Error in getLastWorkingSet:', error)
@@ -189,18 +176,7 @@ export default function EnhancedNewWorkoutPage() {
         .order('created_at', { ascending: false })
       setPrograms((progs||[]) as Program[])
 
-      // Auto-load today's template from active program
-      const todayDow = new Date().getDay()
-      const active = (progs||[]).find(p=>p.is_active)
-      if (active?.id) {
-        const { data: pdays } = await supabase.from('program_days')
-          .select('id,name,dows,order_index').eq('program_id', active.id).order('order_index')
-        const today = (pdays||[]).find(d => (d.dows||[]).includes(todayDow))
-        if (today) {
-          await loadTemplate(active, today)
-          setWorkoutMode('template')
-        }
-      }
+      // Don't auto-load templates - keep it blank by default
     })()
   }, [])
 
@@ -324,24 +300,6 @@ export default function EnhancedNewWorkoutPage() {
     return d.toISOString()
   }
 
-  // Add same exercise as previous one
-  function addSameExercise(exerciseIndex: number) {
-    const exercise = items[exerciseIndex]
-    if (!exercise) return
-    
-    // Find the same exercise to get recent data
-    const lastSet = exercise.sets[exercise.sets.length - 1]
-    const smartSets = lastSet ? [{ ...lastSet }] : [{ weight: 0, reps: 0, set_type: 'working' as const }]
-    
-    const newExerciseId = `${exercise.id}_copy_${Date.now()}`
-    setItems(p => [...p, { 
-      id: newExerciseId, 
-      name: exercise.name + ' (Copy)', 
-      sets: smartSets
-    }])
-    // Auto-expand the new exercise and collapse others
-    expandExerciseAndCollapseOthers(newExerciseId)
-  }
 
   // Enhanced save function with better UX
   async function saveOnline() {
@@ -627,16 +585,6 @@ export default function EnhancedNewWorkoutPage() {
                       </span>
                     </div>
                     <div className="flex items-center gap-2">
-                      <button 
-                        className="toggle text-xs"
-                        onClick={(e) => {
-                          e.stopPropagation()
-                          addSameExercise(idx)
-                        }}
-                        title="Add same exercise"
-                      >
-                        ➕ Same
-                      </button>
                       <button
                         className="toggle text-sm px-3 py-1 text-red-400 hover:bg-red-500/20"
                         onClick={(e) => {
