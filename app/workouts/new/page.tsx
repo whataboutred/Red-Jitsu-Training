@@ -58,6 +58,11 @@ export default function EnhancedNewWorkoutPage() {
   const router = useRouter()
   const [demo, setDemo] = useState(false)
 
+  // Auto-save state
+  const [autosaveWorkoutId, setAutosaveWorkoutId] = useState<string | null>(null)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [isSaving, setIsSaving] = useState(false)
+
   // Auto-collapse helper functions
   const toggleExerciseExpanded = (exerciseId: string) => {
     setExpandedExercises(prev => {
@@ -200,6 +205,13 @@ export default function EnhancedNewWorkoutPage() {
       return
     }
 
+    // Check if exercise already exists (prevent duplicates)
+    const existing = items.find(item => item.id === ex.id)
+    if (existing) {
+      alert(`"${ex.name}" is already in this workout`)
+      return
+    }
+
     // Always start with zeroed out sets
     const initialSets: Array<{ weight: number; reps: number; set_type: 'warmup' | 'working' }> = [
       { weight: 0, reps: 0, set_type: 'working' as const }
@@ -321,6 +333,115 @@ export default function EnhancedNewWorkoutPage() {
     return d.toISOString()
   }
 
+  // Auto-save function (silent, no alerts or redirects)
+  async function autoSave() {
+    if (items.length === 0 || isSaving) return // Don't auto-save if no exercises or already saving
+
+    const userId = await getActiveUserId()
+    if (!userId) return
+
+    setIsSaving(true)
+    try {
+      const title = resolveTitle()
+      const iso = performedAt ? toISO(performedAt) : new Date().toISOString()
+
+      if (autosaveWorkoutId) {
+        // Update existing draft
+        const { error: workoutError } = await supabase
+          .from('workouts')
+          .update({
+            performed_at: iso,
+            title: title,
+            note: note || null,
+            location: location || null
+          })
+          .eq('id', autosaveWorkoutId)
+          .eq('user_id', userId)
+
+        if (workoutError) throw workoutError
+
+        // Delete existing exercises and sets
+        const { data: existingExercises } = await supabase
+          .from('workout_exercises')
+          .select('id')
+          .eq('workout_id', autosaveWorkoutId)
+
+        if (existingExercises) {
+          for (const ex of existingExercises) {
+            await supabase.from('sets').delete().eq('workout_exercise_id', ex.id)
+          }
+          await supabase.from('workout_exercises').delete().eq('workout_id', autosaveWorkoutId)
+        }
+
+        // Insert new exercises and sets
+        for (const it of items) {
+          const { data: wex } = await supabase
+            .from('workout_exercises')
+            .insert({ workout_id: autosaveWorkoutId, exercise_id: it.id, display_name: it.name })
+            .select('id')
+            .single()
+          if (!wex) continue
+
+          if (it.sets.length) {
+            const rows = it.sets.map((s, idx) => ({
+              workout_exercise_id: wex.id,
+              set_index: idx + 1,
+              weight: s.weight,
+              reps: s.reps,
+              set_type: s.set_type,
+            }))
+            await supabase.from('sets').insert(rows)
+          }
+        }
+      } else {
+        // Create new draft
+        const { data: w, error } = await supabase
+          .from('workouts')
+          .insert({ user_id: userId, performed_at: iso, title, note: note || null, location: location || null })
+          .select('id')
+          .single()
+        if (error || !w) throw error
+
+        setAutosaveWorkoutId(w.id)
+
+        for (const it of items) {
+          const { data: wex } = await supabase
+            .from('workout_exercises')
+            .insert({ workout_id: w.id, exercise_id: it.id, display_name: it.name })
+            .select('id')
+            .single()
+          if (!wex) continue
+
+          if (it.sets.length) {
+            const rows = it.sets.map((s, idx) => ({
+              workout_exercise_id: wex.id,
+              set_index: idx + 1,
+              weight: s.weight,
+              reps: s.reps,
+              set_type: s.set_type,
+            }))
+            await supabase.from('sets').insert(rows)
+          }
+        }
+      }
+
+      setLastSaved(new Date())
+    } catch (error) {
+      console.error('Auto-save error:', error)
+      // Silently fail - don't show error to user
+    } finally {
+      setIsSaving(false)
+    }
+  }
+
+  // Auto-save every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      autoSave()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [items, performedAt, customTitle, note, location, autosaveWorkoutId, isSaving])
 
   // Enhanced save function with better UX
   async function saveOnline() {
@@ -328,36 +449,52 @@ export default function EnhancedNewWorkoutPage() {
     const userId = await getActiveUserId()
     if (!userId) { alert('Sign in again.'); return }
 
-    const title = resolveTitle()
-    const iso = performedAt ? toISO(performedAt) : new Date().toISOString()
+    setIsSaving(true)
+    try {
+      const title = resolveTitle()
+      const iso = performedAt ? toISO(performedAt) : new Date().toISOString()
 
-    const { data: w, error} = await supabase
-      .from('workouts')
-      .insert({ user_id: userId, performed_at: iso, title, note: note || null, location: location || null })
-      .select('id')
-      .single()
-    if (error || !w) { alert('Save failed'); return }
+      let workoutId: string
 
-    for (const it of items) {
-      const { data: wex } = await supabase
-        .from('workout_exercises')
-        .insert({ workout_id: w.id, exercise_id: it.id, display_name: it.name })
-        .select('id')
-        .single()
-      if (!wex) continue
+      if (autosaveWorkoutId) {
+        // Update the auto-saved draft
+        await autoSave() // Make sure it's up to date
+        workoutId = autosaveWorkoutId
+      } else {
+        // Create new workout
+        const { data: w, error } = await supabase
+          .from('workouts')
+          .insert({ user_id: userId, performed_at: iso, title, note: note || null, location: location || null })
+          .select('id')
+          .single()
+        if (error || !w) { alert('Save failed'); return }
+        workoutId = w.id
 
-      if (it.sets.length) {
-        const rows = it.sets.map((s, idx) => ({
-          workout_exercise_id: wex.id,
-          set_index: idx + 1,
-          weight: s.weight,
-          reps: s.reps,
-          set_type: s.set_type,
-        }))
-        await supabase.from('sets').insert(rows)
+        for (const it of items) {
+          const { data: wex } = await supabase
+            .from('workout_exercises')
+            .insert({ workout_id: workoutId, exercise_id: it.id, display_name: it.name })
+            .select('id')
+            .single()
+          if (!wex) continue
+
+          if (it.sets.length) {
+            const rows = it.sets.map((s, idx) => ({
+              workout_exercise_id: wex.id,
+              set_index: idx + 1,
+              weight: s.weight,
+              reps: s.reps,
+              set_type: s.set_type,
+            }))
+            await supabase.from('sets').insert(rows)
+          }
+        }
       }
+
+      router.push('/history?highlight=' + workoutId)
+    } finally {
+      setIsSaving(false)
     }
-    router.push('/history?highlight=' + w.id)
   }
 
   async function saveOffline() {
@@ -694,6 +831,11 @@ export default function EnhancedNewWorkoutPage() {
                 <div className="text-sm text-white/70">
                   {items.length} exercise{items.length !== 1 ? 's' : ''} • {items.reduce((acc, item) => acc + item.sets.length, 0)} sets
                 </div>
+                {lastSaved && (
+                  <div className="text-xs text-green-400/80 mt-1">
+                    ✓ Auto-saved {Math.floor((Date.now() - lastSaved.getTime()) / 1000)}s ago
+                  </div>
+                )}
               </div>
               <div className="flex gap-3">
                 <button
@@ -706,9 +848,9 @@ export default function EnhancedNewWorkoutPage() {
                 <button
                   className="btn disabled:opacity-50"
                   onClick={saveOnline}
-                  disabled={!canSave}
+                  disabled={!canSave || isSaving}
                 >
-                  💾 Save Workout
+                  {isSaving ? 'Saving...' : '💾 Save Workout'}
                 </button>
               </div>
             </div>

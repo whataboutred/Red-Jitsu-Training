@@ -60,6 +60,10 @@ export default function EnhancedEditWorkoutPage() {
   const [loading, setLoading] = useState(true)
   const [demo, setDemo] = useState(false)
 
+  // Auto-save state
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
+  const [isAutoSaving, setIsAutoSaving] = useState(false)
+
   // Auto-collapse helper functions
   const toggleExerciseExpanded = (exerciseId: string) => {
     setExpandedExercises(prev => {
@@ -328,9 +332,12 @@ export default function EnhancedEditWorkoutPage() {
     const ex = allExercises.find(e => e.id === exerciseId)
     if (!ex) return
 
-    // Check if exercise already exists
+    // Check if exercise already exists (prevent duplicates)
     const existing = items.find(item => item.id === ex.id)
-    if (existing) return
+    if (existing) {
+      alert(`"${ex.name}" is already in this workout`)
+      return
+    }
 
     // Always start with zeroed out sets
     setItems(prev => [...prev, { id: ex.id, name: ex.name, sets: [{ weight: 0, reps: 0, set_type: 'working' }] }])
@@ -560,6 +567,115 @@ export default function EnhancedEditWorkoutPage() {
       alert('Failed to save template. Please try again.')
     }
   }
+
+  // Auto-save function (silent, no alerts or redirects)
+  async function autoSave() {
+    if (items.length === 0 || isAutoSaving || saving) return // Don't auto-save if no exercises or already saving
+
+    const userId = await getActiveUserId()
+    if (!userId) return
+
+    setIsAutoSaving(true)
+    try {
+      // Step 1: Update workout basic info
+      const { error: workoutError } = await supabase
+        .from('workouts')
+        .update({
+          performed_at: new Date(performedAt).toISOString(),
+          title: title,
+          note: note.trim() || null,
+          location: location || null
+        })
+        .eq('id', workoutId)
+        .eq('user_id', userId)
+
+      if (workoutError) throw workoutError
+
+      // Step 2: Get current workout exercises
+      const { data: currentWorkoutExercises } = await supabase
+        .from('workout_exercises')
+        .select('id, exercise_id, display_name, order_index')
+        .eq('workout_id', workoutId)
+        .order('order_index')
+
+      // Delete exercises that are no longer in the items array
+      if (currentWorkoutExercises) {
+        const currentExerciseIds = items.map(item => item.id)
+        const exercisesToDelete = currentWorkoutExercises.filter(we =>
+          !currentExerciseIds.includes(we.exercise_id || we.id)
+        )
+
+        for (const exerciseToDelete of exercisesToDelete) {
+          await supabase.from('sets').delete().eq('workout_exercise_id', exerciseToDelete.id)
+          await supabase.from('workout_exercises').delete().eq('id', exerciseToDelete.id)
+        }
+      }
+
+      // Update/insert exercises and sets
+      for (let i = 0; i < items.length; i++) {
+        const item = items[i]
+
+        let workoutExercise = currentWorkoutExercises?.find(we =>
+          (we.exercise_id || we.id) === item.id
+        )
+
+        if (workoutExercise) {
+          // Update existing
+          await supabase
+            .from('workout_exercises')
+            .update({ display_name: item.name, order_index: i })
+            .eq('id', workoutExercise.id)
+        } else {
+          // Insert new
+          const { data: newWorkoutExercise } = await supabase
+            .from('workout_exercises')
+            .insert({
+              workout_id: workoutId,
+              exercise_id: item.id,
+              display_name: item.name,
+              order_index: i
+            })
+            .select()
+            .single()
+
+          workoutExercise = newWorkoutExercise
+        }
+
+        // Delete and re-insert all sets
+        if (workoutExercise?.id) {
+          await supabase.from('sets').delete().eq('workout_exercise_id', workoutExercise.id)
+
+          if (item.sets.length > 0) {
+            const setsToInsert = item.sets.map((set, setIndex) => ({
+              workout_exercise_id: workoutExercise.id,
+              weight: set.weight,
+              reps: set.reps,
+              set_type: set.set_type,
+              set_index: setIndex
+            }))
+
+            await supabase.from('sets').insert(setsToInsert)
+          }
+        }
+      }
+
+      setLastSaved(new Date())
+    } catch (error) {
+      console.error('Auto-save error:', error)
+      // Silently fail - don't show error to user
+    } finally {
+      setIsAutoSaving(false)
+    }
+  }
+
+  // Auto-save every 30 seconds
+  useEffect(() => {
+    const interval = setInterval(() => {
+      autoSave()
+    }, 30000) // 30 seconds
+
+    return () => clearInterval(interval)
+  }, [items, performedAt, customTitle, note, location, isAutoSaving, saving])
 
   async function handleSave() {
     const userId = await getActiveUserId()
@@ -1041,6 +1157,11 @@ export default function EnhancedEditWorkoutPage() {
                 <div className="text-sm text-white/70">
                   {items.length} exercise{items.length !== 1 ? 's' : ''} • {items.reduce((acc, item) => acc + item.sets.length, 0)} sets
                 </div>
+                {lastSaved && (
+                  <div className="text-xs text-green-400/80 mt-1">
+                    ✓ Auto-saved {Math.floor((Date.now() - lastSaved.getTime()) / 1000)}s ago
+                  </div>
+                )}
               </div>
               <div className="flex gap-3">
                 <button
@@ -1056,7 +1177,7 @@ export default function EnhancedEditWorkoutPage() {
                 <button
                   className="btn disabled:opacity-50"
                   onClick={handleSave}
-                  disabled={saving}
+                  disabled={saving || isAutoSaving}
                 >
                   {saving ? 'Saving...' : 'Update Workout'}
                 </button>
