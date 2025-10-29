@@ -285,7 +285,7 @@ export default function EnhancedNewWorkoutPage() {
       name: t.display_name,
       sets: Array.from({ length: Math.max(1, t.default_sets||1) }, () => ({
         weight: 0,
-        reps: Math.max(0, t.default_reps||0),
+        reps: 0,  // Always zero out - suggestions will show previous data
         set_type: (t.set_type as 'warmup'|'working') || 'working'
       }))
     }))
