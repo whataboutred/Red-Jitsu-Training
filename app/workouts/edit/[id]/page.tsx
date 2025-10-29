@@ -242,6 +242,32 @@ export default function EnhancedEditWorkoutPage() {
             }))
         }))
         setItems(loadedItems)
+
+        // Fetch suggestions for all loaded exercises in parallel
+        Promise.all(
+          loadedItems.map(async (exercise) => {
+            try {
+              const lastWorkoutSets = await getLastWorkoutSets(exercise.id)
+              if (lastWorkoutSets && lastWorkoutSets.length > 0) {
+                return { id: exercise.id, sets: lastWorkoutSets }
+              }
+            } catch (error) {
+              console.error('Error fetching suggestion for', exercise.name, ':', error)
+            }
+            return null
+          })
+        ).then((results) => {
+          // Update all suggestions at once
+          setLastWorkoutSuggestions(prev => {
+            const newMap = new Map(prev)
+            results.forEach(result => {
+              if (result) {
+                newMap.set(result.id, result.sets)
+              }
+            })
+            return newMap
+          })
+        })
       }
     } catch (error) {
       console.error('Error loading workout:', error)
