@@ -213,7 +213,12 @@ export default function EnhancedEditWorkoutPage() {
       }
 
       // Load existing workout data
-      await loadWorkoutData()
+      try {
+        await loadWorkoutData()
+      } catch (error) {
+        console.error('Error loading workout data:', error)
+        alert('Failed to load workout. Please try again.')
+      }
       setLoading(false)
     })()
   }, [workoutId])
