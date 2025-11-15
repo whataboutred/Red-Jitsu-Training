@@ -58,17 +58,7 @@ export default function EnhancedNewWorkoutPage() {
   const router = useRouter()
   const [demo, setDemo] = useState(false)
 
-  // Auto-save state
-  const [autosaveWorkoutId, setAutosaveWorkoutId] = useState<string | null>(null)
-  const [lastSaved, setLastSaved] = useState<Date | null>(null)
-  const [isSaving, setIsSaving] = useState(false)
-  const autoSaveTimerRef = useRef<NodeJS.Timeout | null>(null)
-  const itemsRef = useRef(items)
-  const isSavingRef = useRef(isSaving)
-
-  // Keep refs in sync
-  useEffect(() => { itemsRef.current = items }, [items])
-  useEffect(() => { isSavingRef.current = isSaving }, [isSaving])
+  // No auto-save - removed to prevent infinite loops
 
   // Auto-collapse helper functions
   const toggleExerciseExpanded = (exerciseId: string) => {
@@ -349,249 +339,51 @@ export default function EnhancedNewWorkoutPage() {
     return d.toISOString()
   }
 
-  // Auto-save function (silent, no alerts or redirects)
-  async function autoSave() {
-    if (items.length === 0 || isSaving) return // Don't auto-save if no exercises or already saving
+  // Auto-save removed - was causing infinite loops
 
-    const userId = await getActiveUserId()
-    if (!userId) return
-
-    setIsSaving(true)
-    try {
-      const title = resolveTitle()
-      const iso = performedAt ? toISO(performedAt) : new Date().toISOString()
-
-      if (autosaveWorkoutId) {
-        // Update existing draft
-        const updateData: any = {
-          performed_at: iso,
-          title: title,
-          note: note || null
-        }
-        if (location) updateData.location = location
-
-        const { error: workoutError } = await supabase
-          .from('workouts')
-          .update(updateData)
-          .eq('id', autosaveWorkoutId)
-          .eq('user_id', userId)
-
-        if (workoutError) throw workoutError
-
-        // Delete existing exercises and sets
-        const { data: existingExercises } = await supabase
-          .from('workout_exercises')
-          .select('id')
-          .eq('workout_id', autosaveWorkoutId)
-
-        if (existingExercises) {
-          for (const ex of existingExercises) {
-            await supabase.from('sets').delete().eq('workout_exercise_id', ex.id)
-          }
-          await supabase.from('workout_exercises').delete().eq('workout_id', autosaveWorkoutId)
-        }
-
-        // Insert new exercises and sets
-        for (const it of items) {
-          const { data: wex } = await supabase
-            .from('workout_exercises')
-            .insert({ workout_id: autosaveWorkoutId, exercise_id: it.id, display_name: it.name })
-            .select('id')
-            .single()
-          if (!wex) continue
-
-          if (it.sets.length) {
-            const rows = it.sets.map((s, idx) => ({
-              workout_exercise_id: wex.id,
-              set_index: idx + 1,
-              weight: s.weight,
-              reps: s.reps,
-              set_type: s.set_type,
-            }))
-            await supabase.from('sets').insert(rows)
-          }
-        }
-      } else {
-        // Create new draft
-        const insertData: any = { user_id: userId, performed_at: iso, title, note: note || null }
-        if (location) insertData.location = location
-
-        const { data: w, error } = await supabase
-          .from('workouts')
-          .insert(insertData)
-          .select('id')
-          .single()
-        if (error || !w) throw error
-
-        setAutosaveWorkoutId(w.id)
-
-        for (const it of items) {
-          const { data: wex } = await supabase
-            .from('workout_exercises')
-            .insert({ workout_id: w.id, exercise_id: it.id, display_name: it.name })
-            .select('id')
-            .single()
-          if (!wex) continue
-
-          if (it.sets.length) {
-            const rows = it.sets.map((s, idx) => ({
-              workout_exercise_id: wex.id,
-              set_index: idx + 1,
-              weight: s.weight,
-              reps: s.reps,
-              set_type: s.set_type,
-            }))
-            await supabase.from('sets').insert(rows)
-          }
-        }
-      }
-
-      setLastSaved(new Date())
-    } catch (error) {
-      console.error('Auto-save error:', error)
-      // Silently fail - don't show error to user
-    } finally {
-      setIsSaving(false)
-    }
-  }
-
-  // Auto-save every 30 seconds - runs once on mount only
-  useEffect(() => {
-    autoSaveTimerRef.current = setInterval(() => {
-      // Access current values via refs to avoid stale closures
-      if (itemsRef.current.length > 0 && !isSavingRef.current) {
-        autoSave()
-      }
-    }, 30000) // 30 seconds
-
-    // Cleanup on unmount
-    return () => {
-      if (autoSaveTimerRef.current) {
-        clearInterval(autoSaveTimerRef.current)
-      }
-    }
-  }, []) // Empty deps - run once on mount
-
-  // Enhanced save function with better UX
+  // Save function - simple manual save only
   async function saveOnline() {
     const { data: { user } } = await supabase.auth.getUser()
     const userId = await getActiveUserId()
     if (!userId) { alert('Sign in again.'); return }
 
-    setIsSaving(true)
-    try {
-      const title = resolveTitle()
-      const iso = performedAt ? toISO(performedAt) : new Date().toISOString()
+    const title = resolveTitle()
+    const iso = performedAt ? toISO(performedAt) : new Date().toISOString()
 
-      let workoutId: string
+    const insertData: any = { user_id: userId, performed_at: iso, title, note: note || null }
+    if (location) insertData.location = location
 
-      if (autosaveWorkoutId) {
-        // Update the auto-saved draft manually (don't use autoSave which fails silently)
-        const updateData: any = {
-          performed_at: iso,
-          title: title,
-          note: note || null
-        }
-        if (location) updateData.location = location
-
-        const { error: workoutError } = await supabase
-          .from('workouts')
-          .update(updateData)
-          .eq('id', autosaveWorkoutId)
-          .eq('user_id', userId)
-
-        if (workoutError) {
-          alert('Failed to update workout: ' + workoutError.message)
-          return
-        }
-
-        // Delete existing exercises and sets, then re-insert
-        const { data: existingExercises } = await supabase
-          .from('workout_exercises')
-          .select('id')
-          .eq('workout_id', autosaveWorkoutId)
-
-        if (existingExercises) {
-          for (const ex of existingExercises) {
-            await supabase.from('sets').delete().eq('workout_exercise_id', ex.id)
-          }
-          await supabase.from('workout_exercises').delete().eq('workout_id', autosaveWorkoutId)
-        }
-
-        // Insert current exercises and sets
-        for (const it of items) {
-          const { data: wex, error: wexError } = await supabase
-            .from('workout_exercises')
-            .insert({ workout_id: autosaveWorkoutId, exercise_id: it.id, display_name: it.name })
-            .select('id')
-            .single()
-
-          if (wexError || !wex) {
-            alert('Failed to save exercise: ' + (wexError?.message || 'Unknown error'))
-            return
-          }
-
-          if (it.sets.length) {
-            const rows = it.sets.map((s, idx) => ({
-              workout_exercise_id: wex.id,
-              set_index: idx + 1,
-              weight: s.weight,
-              reps: s.reps,
-              set_type: s.set_type,
-            }))
-            const { error: setsError } = await supabase.from('sets').insert(rows)
-            if (setsError) {
-              alert('Failed to save sets: ' + setsError.message)
-              return
-            }
-          }
-        }
-
-        workoutId = autosaveWorkoutId
-      } else {
-        // Create new workout
-        const insertData: any = { user_id: userId, performed_at: iso, title, note: note || null }
-        if (location) insertData.location = location
-
-        const { data: w, error } = await supabase
-          .from('workouts')
-          .insert(insertData)
-          .select('id')
-          .single()
-        if (error || !w) {
-          alert('Save failed: ' + (error?.message || 'Unknown error'))
-          return
-        }
-        workoutId = w.id
-
-        for (const it of items) {
-          const { data: wex } = await supabase
-            .from('workout_exercises')
-            .insert({ workout_id: workoutId, exercise_id: it.id, display_name: it.name })
-            .select('id')
-            .single()
-          if (!wex) continue
-
-          if (it.sets.length) {
-            const rows = it.sets.map((s, idx) => ({
-              workout_exercise_id: wex.id,
-              set_index: idx + 1,
-              weight: s.weight,
-              reps: s.reps,
-              set_type: s.set_type,
-            }))
-            await supabase.from('sets').insert(rows)
-          }
-        }
-      }
-
-      router.push('/history?highlight=' + workoutId)
-    } catch (error) {
-      console.error('Save error:', error)
-      alert('Unexpected error while saving: ' + (error as Error).message)
-    } finally {
-      setIsSaving(false)
+    const { data: w, error } = await supabase
+      .from('workouts')
+      .insert(insertData)
+      .select('id')
+      .single()
+    if (error || !w) {
+      alert('Save failed: ' + (error?.message || 'Unknown error'))
+      return
     }
+
+    for (const it of items) {
+      const { data: wex } = await supabase
+        .from('workout_exercises')
+        .insert({ workout_id: w.id, exercise_id: it.id, display_name: it.name })
+        .select('id')
+        .single()
+      if (!wex) continue
+
+      if (it.sets.length) {
+        const rows = it.sets.map((s, idx) => ({
+          workout_exercise_id: wex.id,
+          set_index: idx + 1,
+          weight: s.weight,
+          reps: s.reps,
+          set_type: s.set_type,
+        }))
+        await supabase.from('sets').insert(rows)
+      }
+    }
+
+    router.push('/history?highlight=' + w.id)
   }
 
   async function saveOffline() {
@@ -928,11 +720,6 @@ export default function EnhancedNewWorkoutPage() {
                 <div className="text-sm text-white/70">
                   {items.length} exercise{items.length !== 1 ? 's' : ''} • {items.reduce((acc, item) => acc + item.sets.length, 0)} sets
                 </div>
-                {lastSaved && (
-                  <div className="text-xs text-green-400/80 mt-1">
-                    ✓ Auto-saved {Math.floor((Date.now() - lastSaved.getTime()) / 1000)}s ago
-                  </div>
-                )}
               </div>
               <div className="flex gap-3">
                 <button
@@ -945,9 +732,9 @@ export default function EnhancedNewWorkoutPage() {
                 <button
                   className="btn disabled:opacity-50"
                   onClick={saveOnline}
-                  disabled={!canSave || isSaving}
+                  disabled={!canSave}
                 >
-                  {isSaving ? 'Saving...' : '💾 Save Workout'}
+                  💾 Save Workout
                 </button>
               </div>
             </div>
