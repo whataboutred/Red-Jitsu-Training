@@ -93,13 +93,17 @@ export default function EnhancedEditWorkoutPage() {
       // Get recent workouts at the same location (excluding the current one being edited)
       let query = supabase
         .from('workouts')
-        .select('id, performed_at, location')
+        .select('id, performed_at')
         .eq('user_id', userId)
         .neq('id', workoutId) // Exclude current workout
 
-      // Filter by location if set
+      // Filter by location if set (only if location column exists)
       if (location) {
-        query = query.eq('location', location)
+        try {
+          query = query.eq('location', location)
+        } catch (e) {
+          // Location column doesn't exist yet, skip filtering
+        }
       }
 
       const { data: workouts, error: workoutsError } = await query
@@ -189,18 +193,23 @@ export default function EnhancedEditWorkoutPage() {
         .order('name')
       if (progs) setPrograms(progs)
 
-      // Load previously used locations
-      const { data: locations } = await supabase
-        .from('workouts')
-        .select('location')
-        .eq('user_id', userId)
-        .not('location', 'is', null)
-        .order('performed_at', { ascending: false })
-        .limit(100)
+      // Load previously used locations (if location column exists)
+      try {
+        const { data: locations } = await supabase
+          .from('workouts')
+          .select('location')
+          .eq('user_id', userId)
+          .not('location', 'is', null)
+          .order('performed_at', { ascending: false })
+          .limit(100)
 
-      if (locations) {
-        const uniqueLocations = [...new Set(locations.map(l => l.location).filter(Boolean))]
-        setSavedLocations(uniqueLocations)
+        if (locations) {
+          const uniqueLocations = [...new Set(locations.map(l => l.location).filter(Boolean))]
+          setSavedLocations(uniqueLocations)
+        }
+      } catch (e) {
+        // Location column doesn't exist yet, ignore
+        console.log('Location column not available yet')
       }
 
       // Load existing workout data
@@ -217,7 +226,7 @@ export default function EnhancedEditWorkoutPage() {
       // Load workout details
       const { data: workout } = await supabase
         .from('workouts')
-        .select('performed_at, title, note, location')
+        .select('performed_at, title, note')
         .eq('id', workoutId)
         .eq('user_id', userId)
         .single()
@@ -225,8 +234,22 @@ export default function EnhancedEditWorkoutPage() {
       if (workout) {
         setPerformedAt(new Date(workout.performed_at).toISOString().slice(0, 16))
         setNote(workout.note || '')
-        setLocation(workout.location || '')
         setCustomTitle(workout.title || '')
+
+        // Try to load location if column exists (gracefully handle if it doesn't)
+        try {
+          const { data: workoutWithLocation } = await supabase
+            .from('workouts')
+            .select('location')
+            .eq('id', workoutId)
+            .single()
+          if (workoutWithLocation?.location) {
+            setLocation(workoutWithLocation.location)
+          }
+        } catch (e) {
+          // Location column doesn't exist yet, ignore
+          console.log('Location column not available yet')
+        }
       }
 
       // Load workout exercises and sets
@@ -578,14 +601,16 @@ export default function EnhancedEditWorkoutPage() {
     setIsAutoSaving(true)
     try {
       // Step 1: Update workout basic info
+      const updateData: any = {
+        performed_at: new Date(performedAt).toISOString(),
+        title: title,
+        note: note.trim() || null
+      }
+      if (location) updateData.location = location
+
       const { error: workoutError } = await supabase
         .from('workouts')
-        .update({
-          performed_at: new Date(performedAt).toISOString(),
-          title: title,
-          note: note.trim() || null,
-          location: location || null
-        })
+        .update(updateData)
         .eq('id', workoutId)
         .eq('user_id', userId)
 
@@ -704,14 +729,16 @@ export default function EnhancedEditWorkoutPage() {
       )
       
       // Step 1: Update workout basic info only (safest operation first)
+      const updateData: any = {
+        performed_at: new Date(performedAt).toISOString(),
+        title: title,
+        note: note.trim() || null
+      }
+      if (location) updateData.location = location
+
       const { error: workoutError } = await supabase
         .from('workouts')
-        .update({
-          performed_at: new Date(performedAt).toISOString(),
-          title: title,
-          note: note.trim() || null,
-          location: location || null
-        })
+        .update(updateData)
         .eq('id', workoutId)
         .eq('user_id', userId)
 
