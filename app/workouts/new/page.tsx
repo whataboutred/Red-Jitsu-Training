@@ -92,12 +92,16 @@ export default function EnhancedNewWorkoutPage() {
       // Get recent workouts at the same location
       let query = supabase
         .from('workouts')
-        .select('id, performed_at, location')
+        .select('id, performed_at')
         .eq('user_id', userId)
 
-      // Filter by location if set
+      // Filter by location if set (only if location column exists)
       if (location) {
-        query = query.eq('location', location)
+        try {
+          query = query.eq('location', location)
+        } catch (e) {
+          // Location column doesn't exist yet, skip filtering
+        }
       }
 
       const { data: workouts, error: workoutsError } = await query
@@ -180,18 +184,23 @@ export default function EnhancedNewWorkoutPage() {
         .order('created_at', { ascending: false })
       setPrograms((progs||[]) as Program[])
 
-      // Load previously used locations
-      const { data: locations } = await supabase
-        .from('workouts')
-        .select('location')
-        .eq('user_id', userId)
-        .not('location', 'is', null)
-        .order('performed_at', { ascending: false })
-        .limit(100)
+      // Load previously used locations (if location column exists)
+      try {
+        const { data: locations } = await supabase
+          .from('workouts')
+          .select('location')
+          .eq('user_id', userId)
+          .not('location', 'is', null)
+          .order('performed_at', { ascending: false })
+          .limit(100)
 
-      if (locations) {
-        const uniqueLocations = [...new Set(locations.map(l => l.location).filter(Boolean))]
-        setSavedLocations(uniqueLocations)
+        if (locations) {
+          const uniqueLocations = [...new Set(locations.map(l => l.location).filter(Boolean))]
+          setSavedLocations(uniqueLocations)
+        }
+      } catch (e) {
+        // Location column doesn't exist yet, ignore
+        console.log('Location column not available yet')
       }
 
       // Don't auto-load templates - keep it blank by default
@@ -347,14 +356,16 @@ export default function EnhancedNewWorkoutPage() {
 
       if (autosaveWorkoutId) {
         // Update existing draft
+        const updateData: any = {
+          performed_at: iso,
+          title: title,
+          note: note || null
+        }
+        if (location) updateData.location = location
+
         const { error: workoutError } = await supabase
           .from('workouts')
-          .update({
-            performed_at: iso,
-            title: title,
-            note: note || null,
-            location: location || null
-          })
+          .update(updateData)
           .eq('id', autosaveWorkoutId)
           .eq('user_id', userId)
 
@@ -395,9 +406,12 @@ export default function EnhancedNewWorkoutPage() {
         }
       } else {
         // Create new draft
+        const insertData: any = { user_id: userId, performed_at: iso, title, note: note || null }
+        if (location) insertData.location = location
+
         const { data: w, error } = await supabase
           .from('workouts')
-          .insert({ user_id: userId, performed_at: iso, title, note: note || null, location: location || null })
+          .insert(insertData)
           .select('id')
           .single()
         if (error || !w) throw error
@@ -458,14 +472,16 @@ export default function EnhancedNewWorkoutPage() {
 
       if (autosaveWorkoutId) {
         // Update the auto-saved draft manually (don't use autoSave which fails silently)
+        const updateData: any = {
+          performed_at: iso,
+          title: title,
+          note: note || null
+        }
+        if (location) updateData.location = location
+
         const { error: workoutError } = await supabase
           .from('workouts')
-          .update({
-            performed_at: iso,
-            title: title,
-            note: note || null,
-            location: location || null
-          })
+          .update(updateData)
           .eq('id', autosaveWorkoutId)
           .eq('user_id', userId)
 
@@ -519,9 +535,12 @@ export default function EnhancedNewWorkoutPage() {
         workoutId = autosaveWorkoutId
       } else {
         // Create new workout
+        const insertData: any = { user_id: userId, performed_at: iso, title, note: note || null }
+        if (location) insertData.location = location
+
         const { data: w, error } = await supabase
           .from('workouts')
-          .insert({ user_id: userId, performed_at: iso, title, note: note || null, location: location || null })
+          .insert(insertData)
           .select('id')
           .single()
         if (error || !w) {
