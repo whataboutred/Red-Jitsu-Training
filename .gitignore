@@ -22,3 +22,4 @@ Thumbs.db
 
 # Supabase local temp
 supabase/.temp/
+tsconfig.tsbuildinfo

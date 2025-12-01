@@ -1,26 +1,20 @@
-import type { Metadata } from 'next'
+import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ToastProvider } from '@/components/Toast'
+import Navigation from '@/components/Navigation'
 
 export const metadata: Metadata = {
   title: {
     default: 'Red Jitsu Training',
     template: '%s | Red Jitsu Training',
   },
-  description: 'Track workouts, volume, trends, and more.',
+  description: 'Track workouts, BJJ sessions, cardio, and more.',
   manifest: '/manifest.webmanifest',
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
     title: 'Red Jitsu Training',
     startupImage: '/apple-touch-icon.png',
-  },
-  viewport: {
-    width: 'device-width',
-    initialScale: 1,
-    maximumScale: 1,
-    userScalable: false,
-    viewportFit: 'cover',
   },
   formatDetection: {
     telephone: false,
@@ -32,7 +26,7 @@ export const metadata: Metadata = {
       default: 'Red Jitsu Training',
       template: '%s | Red Jitsu Training',
     },
-    description: 'Track workouts, volume, trends, and more.',
+    description: 'Track workouts, BJJ sessions, cardio, and more.',
   },
   twitter: {
     card: 'summary',
@@ -40,7 +34,7 @@ export const metadata: Metadata = {
       default: 'Red Jitsu Training',
       template: '%s | Red Jitsu Training',
     },
-    description: 'Track workouts, volume, trends, and more.',
+    description: 'Track workouts, BJJ sessions, cardio, and more.',
   },
   icons: {
     icon: '/icons/icon-192.png',
@@ -49,11 +43,22 @@ export const metadata: Metadata = {
   },
 }
 
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+  userScalable: false,
+  viewportFit: 'cover',
+  themeColor: '#0A0A0A',
+}
+
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en">
-      <body>
-        <ToastProvider>{children}</ToastProvider>
+    <html lang="en" className="dark">
+      <body className="bg-brand-dark text-white antialiased">
+        <ToastProvider>
+          <Navigation>{children}</Navigation>
+        </ToastProvider>
       </body>
     </html>
   )
