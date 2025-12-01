@@ -1,9 +1,25 @@
 'use client'
 
-import Nav from '@/components/Nav'
-import BackgroundLogo from '@/components/BackgroundLogo'
-import Link from 'next/link'
 import { Suspense, useEffect, useState, useMemo } from 'react'
+import { motion, AnimatePresence } from 'framer-motion'
+import {
+  BarChart3,
+  Calendar,
+  ChevronRight,
+  Clock,
+  Dumbbell,
+  Flame,
+  Target,
+  TrendingUp,
+  Trophy,
+  Zap,
+  Activity,
+  Filter,
+  ChevronDown
+} from 'lucide-react'
+import { AnimatedCard, StatCard } from '@/components/ui/Card'
+import { Button } from '@/components/ui/Button'
+import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId } from '@/lib/activeUser'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -11,9 +27,9 @@ import WorkoutDetail from '@/components/WorkoutDetail'
 import BJJDetail from '@/components/BJJDetail'
 import CardioDetail from '@/components/CardioDetail'
 
-type Workout = { id:string; performed_at:string; title:string|null }
-type BJJ = { id:string; performed_at:string; duration_min:number; kind:'class'|'drilling'|'open_mat'; intensity:string|null; notes:string|null }
-type Cardio = { id:string; performed_at:string; activity:string; duration_minutes:number|null; distance:number|null; distance_unit:string|null; intensity:string|null; notes:string|null }
+type Workout = { id: string; performed_at: string; title: string | null }
+type BJJ = { id: string; performed_at: string; duration_min: number; kind: 'class' | 'drilling' | 'open_mat'; intensity: string | null; notes: string | null }
+type Cardio = { id: string; performed_at: string; activity: string; duration_minutes: number | null; distance: number | null; distance_unit: string | null; intensity: string | null; notes: string | null }
 
 type ProgressionData = {
   exerciseId: string
@@ -33,21 +49,88 @@ type VolumeData = {
   totalSets: number
 }
 
-export const dynamic = 'force-dynamic' // don’t prerender this page
+export const dynamic = 'force-dynamic'
 
-export default function HistoryPage() {
+// Progress ring component
+function ProgressRing({ progress, size = 60, strokeWidth = 5, color = '#ef4444' }: {
+  progress: number
+  size?: number
+  strokeWidth?: number
+  color?: string
+}) {
+  const radius = (size - strokeWidth) / 2
+  const circumference = radius * 2 * Math.PI
+  const offset = circumference - (Math.min(progress, 100) / 100) * circumference
+
   return (
-    <div className="relative min-h-screen bg-black">
-      <BackgroundLogo />
-      <Nav />
-      <Suspense fallback={<main className="relative z-10 max-w-4xl mx-auto p-4">Loading…</main>}>
-        <HistoryClient />
-      </Suspense>
+    <svg width={size} height={size} className="transform -rotate-90">
+      <circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke="rgba(255,255,255,0.1)"
+        strokeWidth={strokeWidth}
+      />
+      <motion.circle
+        cx={size / 2}
+        cy={size / 2}
+        r={radius}
+        fill="none"
+        stroke={color}
+        strokeWidth={strokeWidth}
+        strokeLinecap="round"
+        strokeDasharray={circumference}
+        initial={{ strokeDashoffset: circumference }}
+        animate={{ strokeDashoffset: offset }}
+        transition={{ duration: 1, ease: "easeOut" }}
+      />
+    </svg>
+  )
+}
+
+// Mini bar chart for volume
+function MiniBarChart({ data, maxValue }: { data: number[]; maxValue: number }) {
+  return (
+    <div className="flex items-end gap-1 h-16">
+      {data.map((value, i) => (
+        <motion.div
+          key={i}
+          className="flex-1 bg-gradient-to-t from-red-500 to-orange-400 rounded-t"
+          initial={{ height: 0 }}
+          animate={{ height: `${(value / maxValue) * 100}%` }}
+          transition={{ delay: i * 0.05, duration: 0.3 }}
+        />
+      ))}
     </div>
   )
 }
 
-function HistoryClient(){
+export default function HistoryPage() {
+  return (
+    <Suspense fallback={<HistoryLoading />}>
+      <HistoryClient />
+    </Suspense>
+  )
+}
+
+function HistoryLoading() {
+  return (
+    <div className="min-h-screen bg-brand-dark p-4 pb-24 space-y-4">
+      <Skeleton variant="rectangular" className="h-10 w-48" />
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+        <SkeletonCard className="h-24" />
+        <SkeletonCard className="h-24" />
+        <SkeletonCard className="h-24" />
+        <SkeletonCard className="h-24" />
+      </div>
+      <SkeletonCard className="h-64" />
+      <SkeletonCard className="h-48" />
+    </div>
+  )
+}
+
+function HistoryClient() {
   const [loading, setLoading] = useState(true)
   const [workouts, setWorkouts] = useState<Workout[]>([])
   const [bjj, setBjj] = useState<BJJ[]>([])
@@ -57,7 +140,8 @@ function HistoryClient(){
   const [selectedView, setSelectedView] = useState<'analytics' | 'workouts'>('analytics')
   const [workoutFilter, setWorkoutFilter] = useState<'all' | 'week' | 'month'>('month')
   const [selectedExercise, setSelectedExercise] = useState<string>('')
-  
+  const [activityFilter, setActivityFilter] = useState<'all' | 'strength' | 'bjj' | 'cardio'>('all')
+
   const params = useSearchParams()
   const router = useRouter()
   const highlightId = params.get('highlight')
@@ -67,11 +151,16 @@ function HistoryClient(){
     router.push('/history')
   }
 
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const PAGE_SIZE = 50
+
   // Filter workouts based on selected time period
   const filteredWorkouts = useMemo(() => {
     const now = new Date()
     const cutoff = new Date()
-    
+
     switch (workoutFilter) {
       case 'week':
         cutoff.setDate(now.getDate() - 7)
@@ -80,9 +169,9 @@ function HistoryClient(){
         cutoff.setMonth(now.getMonth() - 1)
         break
       default:
-        cutoff.setFullYear(now.getFullYear() - 1) // Show last year for 'all'
+        cutoff.setFullYear(now.getFullYear() - 1)
     }
-    
+
     return workouts.filter(w => new Date(w.performed_at) >= cutoff)
   }, [workouts, workoutFilter])
 
@@ -101,16 +190,60 @@ function HistoryClient(){
       return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
     }).length
 
-    const avgPerWeek = workouts.length > 0 ? 
+    const avgPerWeek = workouts.length > 0 ?
       Math.round((workouts.length / Math.max(1, (Date.now() - new Date(workouts[workouts.length - 1].performed_at).getTime()) / (1000 * 60 * 60 * 24 * 7))) * 10) / 10 : 0
 
     return { thisWeek, thisMonth, avgPerWeek, total: workouts.length }
   }, [workouts])
 
-  const [page, setPage] = useState(0)
-  const [hasMore, setHasMore] = useState(true)
-  const [loadingMore, setLoadingMore] = useState(false)
-  const PAGE_SIZE = 50
+  // Combined activities for timeline
+  const allActivities = useMemo(() => {
+    const activities: Array<{
+      id: string
+      type: 'strength' | 'bjj' | 'cardio'
+      date: Date
+      title: string
+      subtitle: string
+      data: Workout | BJJ | Cardio
+    }> = []
+
+    workouts.forEach(w => {
+      activities.push({
+        id: w.id,
+        type: 'strength',
+        date: new Date(w.performed_at),
+        title: w.title || 'Strength Training',
+        subtitle: new Date(w.performed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+        data: w
+      })
+    })
+
+    bjj.forEach(b => {
+      activities.push({
+        id: b.id,
+        type: 'bjj',
+        date: new Date(b.performed_at),
+        title: b.kind.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()),
+        subtitle: `${b.duration_min} min${b.intensity ? ` • ${b.intensity}` : ''}`,
+        data: b
+      })
+    })
+
+    cardio.forEach(c => {
+      activities.push({
+        id: c.id,
+        type: 'cardio',
+        date: new Date(c.performed_at),
+        title: c.activity,
+        subtitle: `${c.duration_minutes ? `${c.duration_minutes} min` : ''}${c.distance ? ` • ${c.distance} ${c.distance_unit}` : ''}`,
+        data: c
+      })
+    })
+
+    return activities
+      .filter(a => activityFilter === 'all' || a.type === activityFilter)
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+  }, [workouts, bjj, cardio, activityFilter])
 
   useEffect(() => {
     (async () => {
@@ -120,7 +253,6 @@ function HistoryClient(){
       const userId = await getActiveUserId()
       if (!userId) return
 
-      // Load initial page of workout data
       const { data: w } = await supabase
         .from('workouts')
         .select('id,performed_at,title')
@@ -131,7 +263,6 @@ function HistoryClient(){
       setWorkouts(initialWorkouts)
       setHasMore(initialWorkouts.length === PAGE_SIZE)
 
-      // Load initial BJJ and Cardio data
       const { data: bj } = await supabase
         .from('bjj_sessions')
         .select('id,performed_at,duration_min,kind,intensity,notes')
@@ -148,7 +279,6 @@ function HistoryClient(){
         .limit(PAGE_SIZE)
       setCardio((cardioData || []) as Cardio[])
 
-      // Load progression analytics
       await loadProgressionData(userId)
       await loadVolumeData(userId)
 
@@ -186,7 +316,6 @@ function HistoryClient(){
   }
 
   async function loadProgressionData(userId: string) {
-    // Get top exercises with progression data over last 90 days
     const { data: exerciseData } = await supabase
       .from('workout_exercises')
       .select(`
@@ -200,7 +329,6 @@ function HistoryClient(){
       .order('workouts.performed_at', { ascending: true })
 
     if (exerciseData) {
-      // Group by exercise and calculate progression
       const exerciseMap = new Map<string, {
         name: string
         sessions: Array<{ date: string; maxWeight: number; totalVolume: number }>
@@ -209,21 +337,17 @@ function HistoryClient(){
       exerciseData.forEach((item: any) => {
         const exerciseId = item.exercise_id
         const date = new Date(item.workouts.performed_at).toISOString().split('T')[0]
-        
+
         const workingSets = item.sets?.filter((s: any) => s.set_type === 'working' && s.weight > 0) || []
         const maxWeight = workingSets.length > 0 ? Math.max(...workingSets.map((s: any) => s.weight)) : 0
         const totalVolume = workingSets.reduce((sum: number, s: any) => sum + (s.weight * s.reps), 0)
 
         if (maxWeight > 0) {
           if (!exerciseMap.has(exerciseId)) {
-            exerciseMap.set(exerciseId, {
-              name: item.display_name,
-              sessions: []
-            })
+            exerciseMap.set(exerciseId, { name: item.display_name, sessions: [] })
           }
-          
+
           const existing = exerciseMap.get(exerciseId)!
-          // Only keep the highest weight/volume for each date
           const existingSession = existing.sessions.find(s => s.date === date)
           if (existingSession) {
             existingSession.maxWeight = Math.max(existingSession.maxWeight, maxWeight)
@@ -234,9 +358,8 @@ function HistoryClient(){
         }
       })
 
-      // Convert to progression data
       const progression: ProgressionData[] = Array.from(exerciseMap.entries())
-        .filter(([_, data]) => data.sessions.length >= 2) // Only exercises with multiple sessions
+        .filter(([_, data]) => data.sessions.length >= 2)
         .map(([exerciseId, data]) => ({
           exerciseId,
           exerciseName: data.name,
@@ -244,18 +367,17 @@ function HistoryClient(){
             date: session.date,
             maxWeight: session.maxWeight,
             totalVolume: session.totalVolume,
-            oneRepMax: Math.round(session.maxWeight * (1 + 0.0333 * 10)) // Rough 1RM estimate
+            oneRepMax: Math.round(session.maxWeight * (1 + 0.0333 * 10))
           }))
         }))
-        .sort((a, b) => b.data.length - a.data.length) // Sort by most data points
-        .slice(0, 8) // Top 8 exercises
+        .sort((a, b) => b.data.length - a.data.length)
+        .slice(0, 8)
 
       setProgressionData(progression)
     }
   }
 
   async function loadVolumeData(userId: string) {
-    // Get volume data by workout type over last 60 days
     const { data: workoutData } = await supabase
       .from('workouts')
       .select(`
@@ -277,13 +399,13 @@ function HistoryClient(){
       workoutData.forEach((workout: any) => {
         const date = new Date(workout.performed_at).toISOString().split('T')[0]
         const title = workout.title?.toLowerCase() || ''
-        
+
         const isUpper = title.includes('upper') || title.includes('push') || title.includes('pull')
         const isLower = title.includes('lower') || title.includes('legs') || title.includes('squat') || title.includes('deadlift')
-        
+
         let totalVolume = 0
         let totalSets = 0
-        
+
         workout.workout_exercises.forEach((exercise: any) => {
           const workingSets = exercise.sets?.filter((s: any) => s.set_type === 'working') || []
           totalSets += workingSets.length
@@ -293,16 +415,15 @@ function HistoryClient(){
         if (!volumeByDate.has(date)) {
           volumeByDate.set(date, { upperVolume: 0, lowerVolume: 0, totalSets: 0 })
         }
-        
+
         const existing = volumeByDate.get(date)!
         existing.totalSets += totalSets
-        
+
         if (isUpper) {
           existing.upperVolume += totalVolume
         } else if (isLower) {
           existing.lowerVolume += totalVolume
         } else {
-          // If we can't categorize, split evenly
           existing.upperVolume += totalVolume / 2
           existing.lowerVolume += totalVolume / 2
         }
@@ -319,28 +440,63 @@ function HistoryClient(){
     }
   }
 
-  if (loading) return (<main className="max-w-6xl mx-auto p-4">Loading analytics...</main>)
+  const getActivityIcon = (type: string) => {
+    switch (type) {
+      case 'strength': return <Dumbbell className="w-5 h-5" />
+      case 'bjj': return <Target className="w-5 h-5" />
+      case 'cardio': return <Activity className="w-5 h-5" />
+      default: return <Dumbbell className="w-5 h-5" />
+    }
+  }
+
+  const getActivityColor = (type: string) => {
+    switch (type) {
+      case 'strength': return { bg: 'bg-red-500/20', text: 'text-red-400', border: 'border-red-500/30' }
+      case 'bjj': return { bg: 'bg-purple-500/20', text: 'text-purple-400', border: 'border-purple-500/30' }
+      case 'cardio': return { bg: 'bg-emerald-500/20', text: 'text-emerald-400', border: 'border-emerald-500/30' }
+      default: return { bg: 'bg-zinc-500/20', text: 'text-zinc-400', border: 'border-zinc-500/30' }
+    }
+  }
+
+  if (loading) return <HistoryLoading />
 
   return (
-    <main className="relative z-10 max-w-6xl mx-auto p-4 space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-bold">🏋️ Training Analytics</h1>
-        <div className="flex gap-2">
-          <button
-            className={`toggle ${selectedView === 'analytics' ? 'bg-brand-red/20 border-brand-red' : ''}`}
-            onClick={() => setSelectedView('analytics')}
-          >
-            📊 Analytics
-          </button>
-          <button
-            className={`toggle ${selectedView === 'workouts' ? 'bg-brand-red/20 border-brand-red' : ''}`}
-            onClick={() => setSelectedView('workouts')}
-          >
-            📋 Workouts
-          </button>
+    <div className="min-h-screen bg-brand-dark pb-24">
+      {/* Header */}
+      <div className="sticky top-0 z-40 bg-brand-dark/80 backdrop-blur-lg border-b border-white/5">
+        <div className="px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div>
+              <h1 className="text-2xl font-bold text-white">Analytics</h1>
+              <p className="text-sm text-zinc-400 mt-0.5">Track your progress</p>
+            </div>
+            <div className="flex gap-2">
+              <button
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedView === 'analytics'
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  : 'text-zinc-400 hover:text-white'
+                  }`}
+                onClick={() => setSelectedView('analytics')}
+              >
+                <BarChart3 className="w-4 h-4 inline mr-1" />
+                Analytics
+              </button>
+              <button
+                className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${selectedView === 'workouts'
+                  ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                  : 'text-zinc-400 hover:text-white'
+                  }`}
+                onClick={() => setSelectedView('workouts')}
+              >
+                <Calendar className="w-4 h-4 inline mr-1" />
+                History
+              </button>
+            </div>
+          </div>
         </div>
       </div>
-      
+
+      {/* Modals */}
       {highlightId && highlightType === 'workout' && (
         <WorkoutDetail workoutId={highlightId} onClose={closeModal} />
       )}
@@ -351,253 +507,300 @@ function HistoryClient(){
         <CardioDetail sessionId={highlightId} onClose={closeModal} onUpdate={() => window.location.reload()} />
       )}
 
-      {selectedView === 'analytics' ? (
-        <>
-          {/* Overview Stats */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="card text-center">
-              <div className="text-3xl font-bold text-brand-red">{workoutStats.thisWeek}</div>
-              <div className="text-sm text-white/70">This Week</div>
-            </div>
-            <div className="card text-center">
-              <div className="text-3xl font-bold text-blue-400">{workoutStats.thisMonth}</div>
-              <div className="text-sm text-white/70">This Month</div>
-            </div>
-            <div className="card text-center">
-              <div className="text-3xl font-bold text-green-400">{workoutStats.avgPerWeek}</div>
-              <div className="text-sm text-white/70">Avg/Week</div>
-            </div>
-            <div className="card text-center">
-              <div className="text-3xl font-bold text-purple-400">{workoutStats.total}</div>
-              <div className="text-sm text-white/70">Total Workouts</div>
-            </div>
-          </div>
-
-          {/* Volume Trends */}
-          {volumeData.length > 0 && (
-            <div className="card">
-              <h2 className="text-xl font-bold mb-4">📈 Volume Trends (60 Days)</h2>
-              <div className="space-y-3">
-                {volumeData.slice(-10).map((day, index) => (
-                  <div key={day.date} className="flex items-center gap-4">
-                    <div className="w-20 text-sm text-white/70">
-                      {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex h-6 bg-black/30 rounded-full overflow-hidden">
-                        <div 
-                          className="bg-red-500/70 flex items-center justify-center text-xs text-white/80"
-                          style={{ width: `${Math.max(10, (day.upperVolume / (day.upperVolume + day.lowerVolume)) * 100)}%` }}
-                        >
-                          {day.upperVolume > 0 ? 'U' : ''}
-                        </div>
-                        <div 
-                          className="bg-blue-500/70 flex items-center justify-center text-xs text-white/80"
-                          style={{ width: `${Math.max(10, (day.lowerVolume / (day.upperVolume + day.lowerVolume)) * 100)}%` }}
-                        >
-                          {day.lowerVolume > 0 ? 'L' : ''}
-                        </div>
-                      </div>
-                    </div>
-                    <div className="text-sm text-white/60 w-16 text-right">
-                      {day.totalSets} sets
-                    </div>
+      <div className="p-4 space-y-4">
+        {selectedView === 'analytics' ? (
+          <>
+            {/* Quick Stats Grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              <AnimatedCard delay={0} className="text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <div className="w-12 h-12 rounded-full bg-red-500/20 flex items-center justify-center">
+                    <Flame className="w-6 h-6 text-red-400" />
                   </div>
-                ))}
-              </div>
-              <div className="flex gap-4 text-sm text-white/60 mt-4">
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-red-500/70 rounded"></div>
-                  Upper Body
                 </div>
-                <div className="flex items-center gap-2">
-                  <div className="w-3 h-3 bg-blue-500/70 rounded"></div>
-                  Lower Body
-                </div>
-              </div>
-            </div>
-          )}
+                <p className="text-2xl font-bold text-red-400">{workoutStats.thisWeek}</p>
+                <p className="text-xs text-zinc-400">This Week</p>
+              </AnimatedCard>
 
-          {/* Exercise Progression */}
-          <div className="card">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-bold">💪 Exercise Progression</h2>
-              {progressionData.length > 0 && (
-                <select
-                  className="input text-sm"
-                  value={selectedExercise}
-                  onChange={(e) => setSelectedExercise(e.target.value)}
-                >
-                  <option value="">All Exercises</option>
-                  {progressionData.map((ex) => (
-                    <option key={ex.exerciseId} value={ex.exerciseId}>
-                      {ex.exerciseName}
-                    </option>
-                  ))}
-                </select>
-              )}
-            </div>
-
-            {progressionData.length === 0 ? (
-              <div className="text-center text-white/60 py-8">
-                <div className="text-4xl mb-2">📊</div>
-                <div>No progression data yet. Complete a few workouts to see your progress!</div>
-              </div>
-            ) : (
-              <div className="space-y-6">
-                {(selectedExercise ? 
-                  progressionData.filter(ex => ex.exerciseId === selectedExercise) : 
-                  progressionData.slice(0, 3)
-                ).map((exercise) => (
-                  <div key={exercise.exerciseId} className="bg-black/20 rounded-xl p-4">
-                    <h3 className="font-medium mb-3">{exercise.exerciseName}</h3>
-                    <div className="space-y-2">
-                      {exercise.data.slice(-8).map((session, index) => (
-                        <div key={session.date} className="flex items-center justify-between text-sm">
-                          <div className="text-white/70">
-                            {new Date(session.date).toLocaleDateString()}
-                          </div>
-                          <div className="flex gap-4">
-                            <span className="text-brand-red font-medium">{session.maxWeight} lb</span>
-                            <span className="text-blue-400">{(session.totalVolume / 1000).toFixed(1)}k vol</span>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                    
-                    {exercise.data.length >= 2 && (
-                      <div className="mt-3 pt-3 border-t border-white/10">
-                        <div className="flex justify-between text-xs text-white/60">
-                          <span>Latest: {exercise.data[exercise.data.length - 1].maxWeight} lb</span>
-                          <span className={`${
-                            exercise.data[exercise.data.length - 1].maxWeight > exercise.data[exercise.data.length - 2].maxWeight
-                              ? 'text-green-400' : 'text-red-400'
-                          }`}>
-                            {exercise.data[exercise.data.length - 1].maxWeight > exercise.data[exercise.data.length - 2].maxWeight ? '📈' : '📉'}
-                            {exercise.data[exercise.data.length - 1].maxWeight - exercise.data[exercise.data.length - 2].maxWeight > 0 ? '+' : ''}
-                            {exercise.data[exercise.data.length - 1].maxWeight - exercise.data[exercise.data.length - 2].maxWeight} lb
-                          </span>
-                        </div>
-                      </div>
-                    )}
+              <AnimatedCard delay={0.05} className="text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <div className="w-12 h-12 rounded-full bg-blue-500/20 flex items-center justify-center">
+                    <Calendar className="w-6 h-6 text-blue-400" />
                   </div>
-                ))}
-              </div>
+                </div>
+                <p className="text-2xl font-bold text-blue-400">{workoutStats.thisMonth}</p>
+                <p className="text-xs text-zinc-400">This Month</p>
+              </AnimatedCard>
+
+              <AnimatedCard delay={0.1} className="text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <div className="w-12 h-12 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                    <TrendingUp className="w-6 h-6 text-emerald-400" />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold text-emerald-400">{workoutStats.avgPerWeek}</p>
+                <p className="text-xs text-zinc-400">Avg/Week</p>
+              </AnimatedCard>
+
+              <AnimatedCard delay={0.15} className="text-center">
+                <div className="flex items-center justify-center mb-2">
+                  <div className="w-12 h-12 rounded-full bg-purple-500/20 flex items-center justify-center">
+                    <Trophy className="w-6 h-6 text-purple-400" />
+                  </div>
+                </div>
+                <p className="text-2xl font-bold text-purple-400">{workoutStats.total}</p>
+                <p className="text-xs text-zinc-400">Total</p>
+              </AnimatedCard>
+            </div>
+
+            {/* Volume Trends */}
+            {volumeData.length > 0 && (
+              <AnimatedCard delay={0.2}>
+                <div className="flex items-center gap-2 mb-4">
+                  <BarChart3 className="w-5 h-5 text-red-400" />
+                  <h3 className="font-semibold text-white">Volume Trends</h3>
+                  <span className="text-xs text-zinc-500 ml-auto">Last 60 days</span>
+                </div>
+
+                <div className="space-y-3">
+                  {volumeData.slice(-10).map((day, index) => {
+                    const total = day.upperVolume + day.lowerVolume
+                    const maxTotal = Math.max(...volumeData.slice(-10).map(d => d.upperVolume + d.lowerVolume))
+
+                    return (
+                      <motion.div
+                        key={day.date}
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: index * 0.05 }}
+                        className="flex items-center gap-3"
+                      >
+                        <div className="w-16 text-xs text-zinc-400">
+                          {new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </div>
+                        <div className="flex-1 h-6 bg-zinc-900 rounded-full overflow-hidden flex">
+                          <motion.div
+                            className="bg-gradient-to-r from-red-500 to-orange-500 h-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(day.upperVolume / maxTotal) * 100}%` }}
+                            transition={{ delay: 0.3 + index * 0.05, duration: 0.5 }}
+                          />
+                          <motion.div
+                            className="bg-gradient-to-r from-blue-500 to-cyan-500 h-full"
+                            initial={{ width: 0 }}
+                            animate={{ width: `${(day.lowerVolume / maxTotal) * 100}%` }}
+                            transition={{ delay: 0.3 + index * 0.05, duration: 0.5 }}
+                          />
+                        </div>
+                        <div className="w-14 text-xs text-zinc-400 text-right">
+                          {day.totalSets} sets
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </div>
+
+                <div className="flex gap-4 text-xs text-zinc-500 mt-4 pt-4 border-t border-white/5">
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded bg-gradient-to-r from-red-500 to-orange-500" />
+                    Upper Body
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <div className="w-3 h-3 rounded bg-gradient-to-r from-blue-500 to-cyan-500" />
+                    Lower Body
+                  </div>
+                </div>
+              </AnimatedCard>
             )}
-          </div>
-        </>
-      ) : (
-        /* Workout History View */
-        <>
-          <div className="flex items-center gap-4 mb-6">
-            <h2 className="text-xl font-bold">Workout History</h2>
-            <div className="flex gap-2">
-              <button
-                className={`toggle text-sm ${workoutFilter === 'week' ? 'bg-brand-red/20 border-brand-red' : ''}`}
-                onClick={() => setWorkoutFilter('week')}
-              >
-                This Week
-              </button>
-              <button
-                className={`toggle text-sm ${workoutFilter === 'month' ? 'bg-brand-red/20 border-brand-red' : ''}`}
-                onClick={() => setWorkoutFilter('month')}
-              >
-                This Month
-              </button>
-              <button
-                className={`toggle text-sm ${workoutFilter === 'all' ? 'bg-brand-red/20 border-brand-red' : ''}`}
-                onClick={() => setWorkoutFilter('all')}
-              >
-                All Time
-              </button>
-            </div>
-          </div>
 
-          {/* Strength Training */}
-          <div className="card">
-            <div className="font-medium mb-3">💪 Strength Training ({filteredWorkouts.length})</div>
-            <div className="grid gap-2 max-h-96 overflow-y-auto">
-              {filteredWorkouts.map(w => (
-                <div
-                  key={w.id}
-                  className={`flex items-start justify-between rounded-xl p-3 ${highlightId === w.id ? 'border border-brand-red bg-brand-red/10' : 'bg-black/30'}`}
-                >
-                  <div>
-                    <div className="text-white/90">{new Date(w.performed_at).toLocaleDateString()} at {new Date(w.performed_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</div>
-                    <div className="text-white/70 text-sm">{w.title ?? 'Untitled'}</div>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => router.push(`/history?highlight=${w.id}`)} className="toggle text-sm px-3 py-1">Open</button>
-                    <button onClick={() => router.push(`/workouts/edit/${w.id}`)} className="toggle text-sm px-3 py-1 bg-blue-500/20 border-blue-400/50 hover:bg-blue-500/30">Edit</button>
-                  </div>
+            {/* Exercise Progression */}
+            <AnimatedCard delay={0.25}>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="w-5 h-5 text-red-400" />
+                  <h3 className="font-semibold text-white">Exercise Progression</h3>
                 </div>
-              ))}
-              {!filteredWorkouts.length && <div className="text-white/60">No workouts in selected time period.</div>}
-            </div>
-            {hasMore && workoutFilter === 'all' && (
-              <div className="mt-4 text-center">
+                {progressionData.length > 0 && (
+                  <select
+                    className="px-3 py-1.5 bg-zinc-900 border border-white/10 rounded-lg text-sm text-white focus:border-red-500 focus:outline-none"
+                    value={selectedExercise}
+                    onChange={(e) => setSelectedExercise(e.target.value)}
+                  >
+                    <option value="">All Exercises</option>
+                    {progressionData.map((ex) => (
+                      <option key={ex.exerciseId} value={ex.exerciseId}>
+                        {ex.exerciseName}
+                      </option>
+                    ))}
+                  </select>
+                )}
+              </div>
+
+              {progressionData.length === 0 ? (
+                <div className="text-center py-8">
+                  <Dumbbell className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+                  <p className="text-zinc-400">Complete a few workouts to see your progress!</p>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {(selectedExercise ?
+                    progressionData.filter(ex => ex.exerciseId === selectedExercise) :
+                    progressionData.slice(0, 3)
+                  ).map((exercise, idx) => {
+                    const latestWeight = exercise.data[exercise.data.length - 1]?.maxWeight || 0
+                    const previousWeight = exercise.data[exercise.data.length - 2]?.maxWeight || 0
+                    const change = latestWeight - previousWeight
+                    const isImproving = change > 0
+
+                    return (
+                      <motion.div
+                        key={exercise.exerciseId}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="p-4 bg-zinc-900/50 rounded-xl"
+                      >
+                        <div className="flex items-center justify-between mb-3">
+                          <h4 className="font-medium text-white">{exercise.exerciseName}</h4>
+                          {exercise.data.length >= 2 && (
+                            <span className={`text-sm font-medium ${isImproving ? 'text-emerald-400' : 'text-red-400'}`}>
+                              {isImproving ? '+' : ''}{change} lb
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Mini chart */}
+                        <div className="flex items-end gap-1 h-12 mb-3">
+                          {exercise.data.slice(-8).map((session, i) => {
+                            const maxWeight = Math.max(...exercise.data.map(d => d.maxWeight))
+                            return (
+                              <motion.div
+                                key={i}
+                                className="flex-1 bg-gradient-to-t from-red-500 to-orange-400 rounded-t"
+                                initial={{ height: 0 }}
+                                animate={{ height: `${(session.maxWeight / maxWeight) * 100}%` }}
+                                transition={{ delay: 0.2 + i * 0.05, duration: 0.3 }}
+                              />
+                            )
+                          })}
+                        </div>
+
+                        <div className="flex justify-between text-xs text-zinc-500">
+                          <span>First: {exercise.data[0]?.maxWeight || 0} lb</span>
+                          <span>Latest: {latestWeight} lb</span>
+                        </div>
+                      </motion.div>
+                    )
+                  })}
+                </div>
+              )}
+            </AnimatedCard>
+          </>
+        ) : (
+          /* Workout History View */
+          <>
+            {/* Filter Pills */}
+            <div className="flex gap-2 flex-wrap">
+              {(['all', 'strength', 'bjj', 'cardio'] as const).map(filter => (
                 <button
-                  onClick={loadMore}
-                  disabled={loadingMore}
-                  className="btn disabled:opacity-50"
+                  key={filter}
+                  onClick={() => setActivityFilter(filter)}
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activityFilter === filter
+                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
+                    : 'bg-zinc-900 text-zinc-400 hover:text-white'
+                    }`}
                 >
-                  {loadingMore ? 'Loading...' : 'Load More'}
+                  {filter === 'all' && 'All'}
+                  {filter === 'strength' && 'Strength'}
+                  {filter === 'bjj' && 'BJJ'}
+                  {filter === 'cardio' && 'Cardio'}
                 </button>
+              ))}
+
+              <div className="ml-auto flex gap-2">
+                {(['week', 'month', 'all'] as const).map(filter => (
+                  <button
+                    key={filter}
+                    onClick={() => setWorkoutFilter(filter)}
+                    className={`px-3 py-2 rounded-lg text-xs font-medium transition-all ${workoutFilter === filter
+                      ? 'bg-zinc-700 text-white'
+                      : 'text-zinc-500 hover:text-white'
+                      }`}
+                  >
+                    {filter === 'week' && 'Week'}
+                    {filter === 'month' && 'Month'}
+                    {filter === 'all' && 'All'}
+                  </button>
+                ))}
               </div>
-            )}
-          </div>
+            </div>
 
-          {/* Other Activities */}
-          {(bjj.length > 0 || cardio.length > 0) && (
-            <>
-              {bjj.length > 0 && (
-                <div className="card">
-                  <div className="font-medium mb-3">🥋 Jiu Jitsu ({bjj.length})</div>
-                  <div className="grid gap-2 max-h-64 overflow-y-auto">
-                    {bjj.slice(0, 10).map(s => (
-                      <div key={s.id} className={`flex items-start justify-between rounded-xl p-3 ${highlightId === s.id && highlightType === 'bjj' ? 'border border-brand-red bg-brand-red/10' : 'bg-black/30'}`}>
-                        <div>
-                          <div className="text-white/90">{new Date(s.performed_at).toLocaleDateString()}</div>
-                          <div className="text-white/80">{s.kind.replace('_', ' ')} • {s.duration_min} min {s.intensity ? `• ${s.intensity}` : ''}</div>
-                        </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => router.push(`/history?highlight=${s.id}&type=bjj`)} className="toggle text-sm px-3 py-1">Open</button>
-                          <button onClick={() => router.push(`/jiu-jitsu/edit/${s.id}`)} className="toggle text-sm px-3 py-1 bg-blue-500/20 border-blue-400/50 hover:bg-blue-500/30">Edit</button>
-                        </div>
-                      </div>
-                    ))}
+            {/* Activity Timeline */}
+            <div className="space-y-2">
+              {allActivities.length === 0 ? (
+                <AnimatedCard>
+                  <div className="text-center py-8">
+                    <Calendar className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
+                    <p className="text-zinc-400">No activities found</p>
                   </div>
-                </div>
-              )}
+                </AnimatedCard>
+              ) : (
+                allActivities.slice(0, 30).map((activity, index) => {
+                  const colors = getActivityColor(activity.type)
 
-              {cardio.length > 0 && (
-                <div className="card">
-                  <div className="font-medium mb-3">🏃 Cardio ({cardio.length})</div>
-                  <div className="grid gap-2 max-h-64 overflow-y-auto">
-                    {cardio.slice(0, 10).map(c => (
-                      <div key={c.id} className={`flex items-start justify-between rounded-xl p-3 ${highlightId === c.id && highlightType === 'cardio' ? 'border border-brand-red bg-brand-red/10' : 'bg-black/30'}`}>
-                        <div>
-                          <div className="text-white/90">{new Date(c.performed_at).toLocaleDateString()}</div>
-                          <div className="text-white/80">
-                            {c.activity}
-                            {c.duration_minutes && ` • ${c.duration_minutes} min`}
-                            {c.distance && c.distance_unit && ` • ${c.distance} ${c.distance_unit}`}
-                            {c.intensity && ` • ${c.intensity}`}
+                  return (
+                    <motion.div
+                      key={`${activity.type}-${activity.id}`}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.03 }}
+                    >
+                      <button
+                        onClick={() => {
+                          if (activity.type === 'strength') {
+                            router.push(`/history?highlight=${activity.id}`)
+                          } else if (activity.type === 'bjj') {
+                            router.push(`/history?highlight=${activity.id}&type=bjj`)
+                          } else {
+                            router.push(`/history?highlight=${activity.id}&type=cardio`)
+                          }
+                        }}
+                        className={`w-full p-4 rounded-xl ${colors.bg} border ${colors.border} hover:border-white/20 transition-all text-left group`}
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`w-10 h-10 rounded-lg ${colors.bg} flex items-center justify-center ${colors.text}`}>
+                            {getActivityIcon(activity.type)}
                           </div>
+                          <div className="flex-1 min-w-0">
+                            <p className="font-medium text-white truncate">{activity.title}</p>
+                            <p className="text-xs text-zinc-400">
+                              {activity.date.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}
+                              {activity.subtitle && ` • ${activity.subtitle}`}
+                            </p>
+                          </div>
+                          <ChevronRight className="w-5 h-5 text-zinc-500 group-hover:text-white transition-colors" />
                         </div>
-                        <div className="flex gap-2">
-                          <button onClick={() => router.push(`/history?highlight=${c.id}&type=cardio`)} className="toggle text-sm px-3 py-1">Open</button>
-                          <button onClick={() => router.push(`/cardio/edit/${c.id}`)} className="toggle text-sm px-3 py-1 bg-pink-500/20 border-pink-400/50 hover:bg-pink-500/30">Edit</button>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
+                      </button>
+                    </motion.div>
+                  )
+                })
+              )}
+
+              {hasMore && activityFilter === 'all' && workoutFilter === 'all' && (
+                <div className="text-center pt-4">
+                  <Button
+                    variant="secondary"
+                    onClick={loadMore}
+                    loading={loadingMore}
+                  >
+                    Load More
+                  </Button>
                 </div>
               )}
-            </>
-          )}
-        </>
-      )}
-    </main>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
   )
 }
