@@ -1,4 +1,4 @@
-import { SupabaseClient, PostgrestFilterBuilder } from '@supabase/supabase-js'
+import { SupabaseClient } from '@supabase/supabase-js'
 
 interface RetryOptions {
   maxRetries?: number
@@ -148,7 +148,7 @@ export async function executeBatch<T, R>(
  * Supabase-specific query wrapper with timeout and retry
  */
 export async function querySupabase<T>(
-  queryBuilder: PostgrestFilterBuilder<any, any, T[]>,
+  queryBuilder: any,
   options: RetryOptions = {}
 ): Promise<T[]> {
   return withRetry(async () => {
