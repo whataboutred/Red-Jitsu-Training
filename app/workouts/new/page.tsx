@@ -222,8 +222,15 @@ export default function EnhancedNewWorkoutPage() {
   const fetchSuggestionsForExercises = useCallback(async (userId: string, exerciseIds: string[], loc?: string) => {
     if (exerciseIds.length === 0) return
 
+    console.log('Fetching suggestions for exercises:', exerciseIds, 'location:', loc || location)
+
     try {
       const suggestions = await getLastWorkoutSetsForExercises(userId, exerciseIds, loc || location)
+
+      console.log('Suggestions received:', suggestions.size, 'exercises')
+      suggestions.forEach((sets, exerciseId) => {
+        console.log(`Exercise ${exerciseId}:`, sets.length, 'sets')
+      })
 
       if (suggestions.size > 0) {
         setLastWorkoutSuggestions(prev => {
@@ -233,12 +240,15 @@ export default function EnhancedNewWorkoutPage() {
           })
           return newMap
         })
+        console.log('Suggestions updated in state')
+      } else {
+        console.log('No suggestions found for any exercises')
       }
     } catch (error) {
       console.error('Error fetching suggestions:', error)
-      // Don't show error toast - suggestions are optional
+      toast.info('Could not load previous workout data for suggestions')
     }
-  }, [location])
+  }, [location, toast])
 
   const toggleExerciseExpanded = (exerciseId: string) => {
     setExpandedExercises(prev => {
