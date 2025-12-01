@@ -2,23 +2,532 @@
 @tailwind components;
 @tailwind utilities;
 
-:root { color-scheme: dark; }
-html, body { height: 100%; background:#0B0B0C; color:white; }
+/* ============================================
+   RED JITSU TRAINING - DESIGN SYSTEM V2
+   ============================================ */
 
-.btn{ @apply inline-flex items-center justify-center rounded-2xl px-4 py-3 font-medium bg-brand-red hover:bg-red-600 transition-all duration-200 active:scale-95 shadow-lg shadow-red-500/20; }
-.card{ @apply bg-brand-gray/95 backdrop-blur-sm rounded-2xl p-4 shadow-xl border border-white/5; }
-.input{ @apply bg-black/40 border border-white/10 rounded-xl px-3 py-2 outline-none focus:border-brand-red focus:bg-black/60 transition-all duration-200; }
-.toggle{ @apply inline-flex items-center gap-2 px-3 py-2 rounded-xl border border-white/10 bg-black/20 hover:bg-black/30 hover:border-white/20 transition-all duration-200; }
+:root {
+  color-scheme: dark;
+  --safe-area-bottom: env(safe-area-inset-bottom, 0px);
+}
 
-/* New color utility classes */
-.accent-red{ @apply text-brand-red; }
-.accent-green{ @apply text-green-400; }
-.accent-blue{ @apply text-blue-400; }
-.accent-purple{ @apply text-purple-400; }
-.accent-orange{ @apply text-orange-400; }
+/* Base styles */
+html, body {
+  height: 100%;
+  background: #0A0A0A;
+  color: white;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
 
-.gradient-red{ @apply bg-gradient-to-r from-red-600/20 to-brand-red/20 border-l-4 border-brand-red; }
-.gradient-green{ @apply bg-gradient-to-r from-green-600/20 to-green-400/20 border-l-4 border-green-400; }
-.gradient-blue{ @apply bg-gradient-to-r from-blue-600/20 to-blue-400/20 border-l-4 border-blue-400; }
-.gradient-pink{ @apply bg-gradient-to-r from-pink-600/20 to-pink-400/20 border-l-4 border-pink-400; }
-h1,h2,h3{ @apply font-semibold; }
+/* Prevent pull-to-refresh on mobile when not at top */
+body {
+  overscroll-behavior-y: contain;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+/* ============================================
+   TYPOGRAPHY
+   ============================================ */
+
+h1, h2, h3, h4, h5, h6 {
+  @apply font-semibold tracking-tight;
+}
+
+.text-primary {
+  @apply text-white;
+}
+
+.text-secondary {
+  @apply text-zinc-400;
+}
+
+.text-tertiary {
+  @apply text-zinc-500;
+}
+
+/* ============================================
+   COMPONENT CLASSES
+   ============================================ */
+
+/* Primary Button */
+.btn {
+  @apply inline-flex items-center justify-center gap-2;
+  @apply rounded-xl px-5 py-3 font-semibold text-white;
+  @apply bg-brand-red hover:bg-red-600 active:bg-red-700;
+  @apply transition-all duration-200 ease-out;
+  @apply active:scale-[0.98];
+  @apply shadow-lg shadow-red-500/20;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed disabled:active:scale-100;
+}
+
+.btn-secondary {
+  @apply inline-flex items-center justify-center gap-2;
+  @apply rounded-xl px-5 py-3 font-semibold;
+  @apply bg-zinc-800 text-white hover:bg-zinc-700 active:bg-zinc-600;
+  @apply transition-all duration-200 ease-out;
+  @apply active:scale-[0.98];
+  @apply border border-zinc-700;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-ghost {
+  @apply inline-flex items-center justify-center gap-2;
+  @apply rounded-xl px-5 py-3 font-medium;
+  @apply bg-transparent text-zinc-300 hover:text-white hover:bg-white/5;
+  @apply transition-all duration-200 ease-out;
+  @apply active:scale-[0.98];
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.btn-icon {
+  @apply inline-flex items-center justify-center;
+  @apply w-10 h-10 rounded-full;
+  @apply bg-zinc-800 text-zinc-300 hover:text-white hover:bg-zinc-700;
+  @apply transition-all duration-200 ease-out;
+  @apply active:scale-95;
+}
+
+.btn-sm {
+  @apply px-3 py-2 text-sm rounded-lg;
+}
+
+.btn-lg {
+  @apply px-6 py-4 text-lg rounded-2xl;
+}
+
+/* Cards */
+.card {
+  @apply bg-zinc-900/80 backdrop-blur-sm;
+  @apply rounded-2xl p-4;
+  @apply border border-white/5;
+  @apply shadow-card;
+  @apply transition-all duration-200;
+}
+
+.card-elevated {
+  @apply bg-zinc-800/90 backdrop-blur-sm;
+  @apply rounded-2xl p-4;
+  @apply border border-white/10;
+  @apply shadow-card-hover;
+}
+
+.card-interactive {
+  @apply card cursor-pointer;
+  @apply hover:bg-zinc-800/90 hover:border-white/10 hover:shadow-card-hover;
+  @apply active:scale-[0.99];
+}
+
+/* Inputs */
+.input {
+  @apply w-full bg-zinc-900 border border-zinc-700;
+  @apply rounded-xl px-4 py-3 text-white placeholder-zinc-500;
+  @apply outline-none transition-all duration-200;
+  @apply focus:border-brand-red focus:ring-2 focus:ring-brand-red/20;
+  @apply disabled:opacity-50 disabled:cursor-not-allowed;
+}
+
+.input-sm {
+  @apply px-3 py-2 text-sm rounded-lg;
+}
+
+.input-lg {
+  @apply px-5 py-4 text-lg rounded-2xl;
+}
+
+/* Number input for weights/reps - larger touch targets */
+.input-number {
+  @apply w-full bg-zinc-900 border border-zinc-700;
+  @apply rounded-xl px-4 py-4 text-center text-xl font-semibold;
+  @apply outline-none transition-all duration-200;
+  @apply focus:border-brand-red focus:ring-2 focus:ring-brand-red/20;
+}
+
+/* Toggle/Chip buttons */
+.toggle {
+  @apply inline-flex items-center justify-center gap-2;
+  @apply px-4 py-2 rounded-full;
+  @apply bg-zinc-800/50 text-zinc-400 border border-zinc-700/50;
+  @apply transition-all duration-200;
+  @apply hover:bg-zinc-700/50 hover:text-zinc-300;
+}
+
+.toggle-active {
+  @apply bg-brand-red/20 text-brand-red border-brand-red/50;
+  @apply hover:bg-brand-red/30;
+}
+
+.toggle-bjj {
+  @apply bg-bjj/20 text-bjj-light border-bjj/50;
+  @apply hover:bg-bjj/30;
+}
+
+.toggle-cardio {
+  @apply bg-cardio/20 text-cardio-light border-cardio/50;
+  @apply hover:bg-cardio/30;
+}
+
+/* ============================================
+   ACTIVITY COLOR VARIANTS
+   ============================================ */
+
+/* Strength/Lifting */
+.accent-strength {
+  @apply text-strength;
+}
+
+.bg-strength-subtle {
+  @apply bg-strength/10;
+}
+
+.border-strength-subtle {
+  @apply border-strength/30;
+}
+
+/* BJJ */
+.accent-bjj {
+  @apply text-bjj;
+}
+
+.bg-bjj-subtle {
+  @apply bg-bjj/10;
+}
+
+.border-bjj-subtle {
+  @apply border-bjj/30;
+}
+
+/* Cardio */
+.accent-cardio {
+  @apply text-cardio;
+}
+
+.bg-cardio-subtle {
+  @apply bg-cardio/10;
+}
+
+.border-cardio-subtle {
+  @apply border-cardio/30;
+}
+
+/* ============================================
+   GRADIENT ACCENTS
+   ============================================ */
+
+.gradient-strength {
+  @apply bg-gradient-to-r from-strength/20 to-orange-500/20;
+  @apply border-l-4 border-strength;
+}
+
+.gradient-bjj {
+  @apply bg-gradient-to-r from-bjj/20 to-pink-500/20;
+  @apply border-l-4 border-bjj;
+}
+
+.gradient-cardio {
+  @apply bg-gradient-to-r from-cardio/20 to-cyan-500/20;
+  @apply border-l-4 border-cardio;
+}
+
+/* ============================================
+   STATUS BADGES
+   ============================================ */
+
+.badge {
+  @apply inline-flex items-center gap-1;
+  @apply px-2 py-0.5 rounded-full text-xs font-medium;
+}
+
+.badge-success {
+  @apply bg-success/20 text-emerald-400;
+}
+
+.badge-warning {
+  @apply bg-warning/20 text-amber-400;
+}
+
+.badge-error {
+  @apply bg-error/20 text-red-400;
+}
+
+.badge-info {
+  @apply bg-info/20 text-blue-400;
+}
+
+/* ============================================
+   SKELETON LOADERS
+   ============================================ */
+
+.skeleton {
+  @apply bg-zinc-800 rounded-lg animate-pulse;
+}
+
+.skeleton-text {
+  @apply h-4 bg-zinc-800 rounded animate-pulse;
+}
+
+.skeleton-circle {
+  @apply bg-zinc-800 rounded-full animate-pulse;
+}
+
+/* ============================================
+   BOTTOM NAVIGATION
+   ============================================ */
+
+.bottom-nav {
+  @apply fixed bottom-0 left-0 right-0;
+  @apply bg-zinc-900/95 backdrop-blur-lg;
+  @apply border-t border-white/5;
+  @apply pb-safe-bottom;
+  @apply z-50;
+}
+
+.nav-item {
+  @apply flex flex-col items-center justify-center gap-1;
+  @apply py-2 px-4;
+  @apply text-zinc-500 transition-colors duration-200;
+}
+
+.nav-item-active {
+  @apply text-brand-red;
+}
+
+/* ============================================
+   FLOATING ACTION BUTTON
+   ============================================ */
+
+.fab {
+  @apply fixed z-50;
+  @apply w-14 h-14 rounded-full;
+  @apply bg-brand-red text-white;
+  @apply flex items-center justify-center;
+  @apply shadow-lg shadow-red-500/30;
+  @apply transition-all duration-200;
+  @apply active:scale-95 hover:shadow-xl hover:shadow-red-500/40;
+}
+
+.fab-extended {
+  @apply w-auto px-6 rounded-full;
+  @apply gap-2;
+}
+
+/* ============================================
+   BOTTOM SHEET
+   ============================================ */
+
+.bottom-sheet-backdrop {
+  @apply fixed inset-0 bg-black/60 backdrop-blur-sm z-50;
+}
+
+.bottom-sheet {
+  @apply fixed bottom-0 left-0 right-0;
+  @apply bg-zinc-900 rounded-t-3xl;
+  @apply pb-safe-bottom;
+  @apply z-50 max-h-[90vh] overflow-hidden;
+}
+
+.bottom-sheet-handle {
+  @apply w-12 h-1 bg-zinc-600 rounded-full mx-auto mt-3 mb-2;
+}
+
+/* ============================================
+   SET ROW STYLES
+   ============================================ */
+
+.set-row {
+  @apply flex items-center gap-3 p-3;
+  @apply bg-zinc-800/50 rounded-xl;
+  @apply border border-transparent;
+  @apply transition-all duration-200;
+}
+
+.set-row-active {
+  @apply border-brand-red/30 bg-zinc-800;
+}
+
+.set-row-warmup {
+  @apply bg-amber-500/10 border-amber-500/20;
+}
+
+.set-row-completed {
+  @apply bg-success/10 border-success/20;
+}
+
+/* ============================================
+   WORKOUT MODE (FULLSCREEN)
+   ============================================ */
+
+.workout-mode {
+  @apply min-h-screen bg-brand-dark;
+  @apply pb-24; /* Space for floating controls */
+}
+
+.workout-header {
+  @apply sticky top-0 z-40;
+  @apply bg-brand-dark/95 backdrop-blur-lg;
+  @apply border-b border-white/5;
+  @apply px-4 py-3;
+}
+
+.workout-footer {
+  @apply fixed bottom-0 left-0 right-0;
+  @apply bg-zinc-900/95 backdrop-blur-lg;
+  @apply border-t border-white/5;
+  @apply p-4 pb-safe-bottom;
+  @apply z-40;
+}
+
+/* ============================================
+   EXERCISE CARD
+   ============================================ */
+
+.exercise-card {
+  @apply bg-zinc-900 rounded-2xl overflow-hidden;
+  @apply border border-white/5;
+  @apply transition-all duration-200;
+}
+
+.exercise-card-header {
+  @apply flex items-center justify-between;
+  @apply p-4 bg-zinc-800/50;
+  @apply cursor-pointer;
+}
+
+.exercise-card-body {
+  @apply p-4 space-y-3;
+}
+
+/* ============================================
+   PROGRESS INDICATORS
+   ============================================ */
+
+.progress-ring {
+  @apply relative inline-flex items-center justify-center;
+}
+
+.progress-bar {
+  @apply h-2 bg-zinc-800 rounded-full overflow-hidden;
+}
+
+.progress-bar-fill {
+  @apply h-full rounded-full transition-all duration-500 ease-out;
+}
+
+/* ============================================
+   REST TIMER
+   ============================================ */
+
+.rest-timer {
+  @apply fixed bottom-24 left-1/2 -translate-x-1/2;
+  @apply bg-zinc-900/95 backdrop-blur-lg;
+  @apply rounded-full px-6 py-3;
+  @apply border border-white/10;
+  @apply shadow-xl z-40;
+  @apply flex items-center gap-4;
+}
+
+/* ============================================
+   STAT CARDS
+   ============================================ */
+
+.stat-card {
+  @apply bg-zinc-900/60 rounded-2xl p-4;
+  @apply border border-white/5;
+}
+
+.stat-value {
+  @apply text-2xl font-bold text-white;
+}
+
+.stat-label {
+  @apply text-sm text-zinc-400;
+}
+
+/* ============================================
+   PR BADGE
+   ============================================ */
+
+.pr-badge {
+  @apply inline-flex items-center gap-1;
+  @apply px-2 py-1 rounded-lg;
+  @apply bg-gradient-to-r from-amber-500 to-orange-500;
+  @apply text-xs font-bold text-white;
+  @apply animate-pulse-soft;
+}
+
+/* ============================================
+   EMPTY STATES
+   ============================================ */
+
+.empty-state {
+  @apply flex flex-col items-center justify-center;
+  @apply py-12 px-6 text-center;
+}
+
+.empty-state-icon {
+  @apply w-16 h-16 mb-4 text-zinc-600;
+}
+
+.empty-state-title {
+  @apply text-lg font-semibold text-zinc-400 mb-2;
+}
+
+.empty-state-description {
+  @apply text-zinc-500 max-w-xs;
+}
+
+/* ============================================
+   UTILITY CLASSES
+   ============================================ */
+
+.safe-bottom {
+  padding-bottom: calc(1rem + var(--safe-area-bottom));
+}
+
+.pb-safe-bottom {
+  padding-bottom: var(--safe-area-bottom);
+}
+
+/* Hide scrollbar but keep functionality */
+.no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.no-scrollbar::-webkit-scrollbar {
+  display: none;
+}
+
+/* Touch action for better mobile gestures */
+.touch-pan-y {
+  touch-action: pan-y;
+}
+
+/* Prevent text selection on UI elements */
+.select-none {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* Tap highlight removal */
+.tap-highlight-none {
+  -webkit-tap-highlight-color: transparent;
+}
