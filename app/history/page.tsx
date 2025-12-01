@@ -107,6 +107,11 @@ function HistoryClient(){
     return { thisWeek, thisMonth, avgPerWeek, total: workouts.length }
   }, [workouts])
 
+  const [page, setPage] = useState(0)
+  const [hasMore, setHasMore] = useState(true)
+  const [loadingMore, setLoadingMore] = useState(false)
+  const PAGE_SIZE = 50
+
   useEffect(() => {
     (async () => {
       const { data: { user } } = await supabase.auth.getUser()
@@ -115,22 +120,24 @@ function HistoryClient(){
       const userId = await getActiveUserId()
       if (!userId) return
 
-      // Load basic workout data
+      // Load initial page of workout data
       const { data: w } = await supabase
         .from('workouts')
         .select('id,performed_at,title')
         .eq('user_id', userId)
         .order('performed_at', { ascending: false })
-        .limit(500)
-      setWorkouts((w || []) as Workout[])
+        .limit(PAGE_SIZE)
+      const initialWorkouts = (w || []) as Workout[]
+      setWorkouts(initialWorkouts)
+      setHasMore(initialWorkouts.length === PAGE_SIZE)
 
-      // Load BJJ and Cardio data
+      // Load initial BJJ and Cardio data
       const { data: bj } = await supabase
         .from('bjj_sessions')
         .select('id,performed_at,duration_min,kind,intensity,notes')
         .eq('user_id', userId)
         .order('performed_at', { ascending: false })
-        .limit(500)
+        .limit(PAGE_SIZE)
       setBjj((bj || []) as BJJ[])
 
       const { data: cardioData } = await supabase
@@ -138,7 +145,7 @@ function HistoryClient(){
         .select('id,performed_at,activity,duration_minutes,distance,distance_unit,intensity,notes')
         .eq('user_id', userId)
         .order('performed_at', { ascending: false })
-        .limit(500)
+        .limit(PAGE_SIZE)
       setCardio((cardioData || []) as Cardio[])
 
       // Load progression analytics
@@ -148,6 +155,35 @@ function HistoryClient(){
       setLoading(false)
     })()
   }, [])
+
+  const loadMore = async () => {
+    if (loadingMore || !hasMore) return
+
+    setLoadingMore(true)
+    try {
+      const userId = await getActiveUserId()
+      if (!userId) return
+
+      const nextPage = page + 1
+      const offset = nextPage * PAGE_SIZE
+
+      const { data: w } = await supabase
+        .from('workouts')
+        .select('id,performed_at,title')
+        .eq('user_id', userId)
+        .order('performed_at', { ascending: false })
+        .range(offset, offset + PAGE_SIZE - 1)
+
+      const newWorkouts = (w || []) as Workout[]
+      setWorkouts(prev => [...prev, ...newWorkouts])
+      setPage(nextPage)
+      setHasMore(newWorkouts.length === PAGE_SIZE)
+    } catch (error) {
+      console.error('Error loading more workouts:', error)
+    } finally {
+      setLoadingMore(false)
+    }
+  }
 
   async function loadProgressionData(userId: string) {
     // Get top exercises with progression data over last 90 days
@@ -498,6 +534,17 @@ function HistoryClient(){
               ))}
               {!filteredWorkouts.length && <div className="text-white/60">No workouts in selected time period.</div>}
             </div>
+            {hasMore && workoutFilter === 'all' && (
+              <div className="mt-4 text-center">
+                <button
+                  onClick={loadMore}
+                  disabled={loadingMore}
+                  className="btn disabled:opacity-50"
+                >
+                  {loadingMore ? 'Loading...' : 'Load More'}
+                </button>
+              </div>
+            )}
           </div>
 
           {/* Other Activities */}
