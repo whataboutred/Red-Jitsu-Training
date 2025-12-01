@@ -1,55 +1,61 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useRef } from 'react'
 
 export default function SafeAutoRefresh() {
   const [updateAvailable, setUpdateAvailable] = useState(false)
-  const [lastActivity, setLastActivity] = useState(Date.now())
   const [showUpdateNotification, setShowUpdateNotification] = useState(false)
 
-  // Track user activity to prevent refresh during active use
-  const updateActivityTime = useCallback(() => {
-    setLastActivity(Date.now())
-  }, [])
-
-  // Check if user has been idle for more than 15 minutes
-  const isIdle = useCallback(() => {
-    return Date.now() - lastActivity > 15 * 60 * 1000 // 15 minutes
-  }, [lastActivity])
+  // Use ref instead of state to avoid re-renders
+  const lastActivityRef = useRef(Date.now())
 
   useEffect(() => {
+    // Track user activity to prevent refresh during active use
+    const updateActivityTime = () => {
+      lastActivityRef.current = Date.now()
+    }
+
+    // Check if user has been idle for more than 15 minutes
+    const isIdle = () => {
+      return Date.now() - lastActivityRef.current > 15 * 60 * 1000 // 15 minutes
+    }
+
     // Add activity listeners
     const events = ['mousedown', 'mousemove', 'keypress', 'scroll', 'touchstart', 'click']
     events.forEach(event => {
       document.addEventListener(event, updateActivityTime, { passive: true })
     })
 
+    let updateInterval: NodeJS.Timeout | null = null
+    let visibilityChangeHandler: (() => void) | null = null
+    let messageHandler: ((e: MessageEvent) => void) | null = null
+
     // Service Worker registration and update handling
     if ('serviceWorker' in navigator && process.env.NEXT_PUBLIC_SW !== 'off') {
       navigator.serviceWorker.register('/sw.js').then((reg) => {
         // Force immediate update check
         reg.update()
-        
-        // Check for updates every 10 minutes (less aggressive than before)
-        const updateInterval = setInterval(() => {
+
+        // Check for updates every 10 minutes
+        updateInterval = setInterval(() => {
           reg.update()
         }, 10 * 60 * 1000)
 
         // Check when app becomes visible but only if idle
-        const handleVisibilityChange = () => {
+        visibilityChangeHandler = () => {
           if (!document.hidden && isIdle()) {
             reg.update()
           }
         }
-        document.addEventListener('visibilitychange', handleVisibilityChange)
+        document.addEventListener('visibilitychange', visibilityChangeHandler)
 
         // Handle service worker updates intelligently
-        navigator.serviceWorker.addEventListener('message', (e) => {
+        messageHandler = (e: MessageEvent) => {
           if (e.data?.type === 'SW_UPDATED') {
             console.log('New version available')
             setUpdateAvailable(true)
             setShowUpdateNotification(true)
-            
+
             // Only auto-refresh if user has been idle for >15 minutes
             const checkIdleAndRefresh = () => {
               if (isIdle() && document.visibilityState === 'visible') {
@@ -60,28 +66,36 @@ export default function SafeAutoRefresh() {
                 setTimeout(checkIdleAndRefresh, 2 * 60 * 1000)
               }
             }
-            
+
             // Start idle check after 5 seconds
             setTimeout(checkIdleAndRefresh, 5000)
           }
-        })
-
-        return () => {
-          clearInterval(updateInterval)
-          document.removeEventListener('visibilitychange', handleVisibilityChange)
-          events.forEach(event => {
-            document.removeEventListener(event, updateActivityTime)
-          })
         }
+        navigator.serviceWorker.addEventListener('message', messageHandler)
+      }).catch(err => {
+        console.error('Service worker registration failed:', err)
       })
     }
 
+    // Cleanup function
     return () => {
       events.forEach(event => {
         document.removeEventListener(event, updateActivityTime)
       })
+
+      if (updateInterval) {
+        clearInterval(updateInterval)
+      }
+
+      if (visibilityChangeHandler) {
+        document.removeEventListener('visibilitychange', visibilityChangeHandler)
+      }
+
+      if (messageHandler) {
+        navigator.serviceWorker?.removeEventListener('message', messageHandler)
+      }
     }
-  }, [updateActivityTime, isIdle])
+  }, [])
 
   const handleManualRefresh = () => {
     window.location.reload()
