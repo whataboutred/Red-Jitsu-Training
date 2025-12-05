@@ -125,7 +125,7 @@ const modalSizes = {
   sm: 'max-w-sm',
   md: 'max-w-md',
   lg: 'max-w-lg',
-  full: 'max-w-full mx-4',
+  full: 'max-w-full',
 };
 
 export const Modal = ({ isOpen, onClose, children, title, size = 'md' }: ModalProps) => {
@@ -170,7 +170,6 @@ export const Modal = ({ isOpen, onClose, children, title, size = 'md' }: ModalPr
               w-[calc(100%-2rem)] ${modalSizes[size]}
               bg-zinc-900 rounded-2xl border border-white/10
               shadow-2xl overflow-hidden
-              mx-4
             `}
             style={{
               maxHeight: 'min(calc(100vh - 4rem), calc(100dvh - 4rem))',
