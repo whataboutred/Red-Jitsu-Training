@@ -4,9 +4,29 @@ import Nav from '@/components/Nav'
 import BackgroundLogo from '@/components/BackgroundLogo'
 import ProgramTemplates from '@/components/ProgramTemplates'
 import { useEffect, useMemo, useState } from 'react'
+import { motion } from 'framer-motion'
 import { supabase } from '@/lib/supabaseClient'
 import { getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
 import Link from 'next/link'
+import { AnimatedCard } from '@/components/ui/Card'
+import {
+  Dumbbell,
+  Calendar,
+  ChevronDown,
+  ChevronRight,
+  Plus,
+  Zap,
+  Target,
+  Trash2,
+  Edit3,
+  Check,
+  X,
+  Search,
+  ArrowUp,
+  ArrowDown,
+  Sparkles,
+  LayoutGrid,
+} from 'lucide-react'
 
 type Exercise = {
   id: string
@@ -103,12 +123,29 @@ export default function ProgramsPage() {
       <div className="relative min-h-screen bg-black">
         <BackgroundLogo />
         <Nav />
-        <main className="relative z-10 p-4 max-w-xl mx-auto">
-          <h1 className="text-xl font-semibold mb-2">Demo mode</h1>
-          <p className="text-white/70">
-            You're viewing the app in read-only demo mode. To create your own
-            programs, please <Link href="/login" className="underline">sign in</Link>.
-          </p>
+        <main className="relative z-10 p-4 max-w-xl mx-auto pt-8">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4 }}
+          >
+            <AnimatedCard className="text-center py-12">
+              <div className="w-16 h-16 rounded-full bg-brand-red/20 flex items-center justify-center mx-auto mb-4">
+                <Target className="w-8 h-8 text-brand-red" />
+              </div>
+              <h1 className="text-xl font-semibold mb-2">Demo Mode</h1>
+              <p className="text-zinc-400 mb-6">
+                You're viewing the app in read-only demo mode. To create your own
+                programs, please sign in.
+              </p>
+              <Link
+                href="/login"
+                className="btn inline-flex"
+              >
+                Sign In to Continue
+              </Link>
+            </AnimatedCard>
+          </motion.div>
         </main>
       </div>
     )
@@ -119,11 +156,36 @@ export default function ProgramsPage() {
       <div className="relative min-h-screen bg-black">
         <BackgroundLogo />
         <Nav />
-        <main className="relative z-10 max-w-6xl mx-auto p-4">
-          <div className="animate-pulse space-y-6">
-            <div className="h-8 bg-white/10 rounded w-1/3"></div>
-            <div className="h-32 bg-white/10 rounded"></div>
-            <div className="h-48 bg-white/10 rounded"></div>
+        <main className="relative z-10 max-w-6xl mx-auto p-4 space-y-6">
+          <div className="flex items-center justify-between">
+            <div className="h-8 bg-zinc-800 rounded-lg w-48 animate-pulse"></div>
+            <div className="flex gap-3">
+              <div className="h-10 bg-zinc-800 rounded-full w-32 animate-pulse"></div>
+              <div className="h-10 bg-zinc-800 rounded-xl w-36 animate-pulse"></div>
+            </div>
+          </div>
+          <div className="bg-zinc-900/80 rounded-2xl p-6 border border-white/5">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="bg-black/30 rounded-2xl p-5 border border-white/10">
+                  <div className="flex justify-between mb-4">
+                    <div className="space-y-2">
+                      <div className="h-5 bg-zinc-800 rounded w-32 animate-pulse"></div>
+                      <div className="h-4 bg-zinc-800/50 rounded w-20 animate-pulse"></div>
+                    </div>
+                    <div className="h-10 w-10 bg-zinc-800 rounded-full animate-pulse"></div>
+                  </div>
+                  <div className="space-y-2 mb-4">
+                    <div className="h-4 bg-zinc-800/50 rounded w-24 animate-pulse"></div>
+                    <div className="h-4 bg-zinc-800/50 rounded w-28 animate-pulse"></div>
+                  </div>
+                  <div className="flex gap-2">
+                    <div className="h-9 bg-zinc-800 rounded-full flex-1 animate-pulse"></div>
+                    <div className="h-9 bg-zinc-800 rounded-xl w-20 animate-pulse"></div>
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </main>
       </div>
@@ -556,108 +618,182 @@ export default function ProgramsPage() {
         <BackgroundLogo />
         <Nav />
         <main className="relative z-10 max-w-6xl mx-auto p-4 space-y-6">
-          <div className="flex items-center justify-between">
-            <h1 className="text-2xl font-bold">Workout Programs</h1>
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center justify-between"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-brand-red/20 to-orange-500/20 flex items-center justify-center">
+                <Dumbbell className="w-5 h-5 text-brand-red" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">Workout Programs</h1>
+                <p className="text-sm text-zinc-500">Build and manage your training plans</p>
+              </div>
+            </div>
             <div className="flex gap-3">
               <button className="toggle" onClick={startQuickMode}>
-                ⚡ Quick Start
+                <Zap className="w-4 h-4" />
+                <span className="hidden sm:inline">Quick Start</span>
               </button>
               <button className="btn" onClick={startManualMode}>
-                + Create Custom
+                <Plus className="w-4 h-4" />
+                <span className="hidden sm:inline">Create Custom</span>
               </button>
             </div>
-          </div>
+          </motion.div>
 
           {/* Quick Start Templates */}
           {programs.length === 0 && (
-            <ProgramTemplates onSelectTemplate={handleTemplateSelect} />
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <ProgramTemplates onSelectTemplate={handleTemplateSelect} />
+            </motion.div>
           )}
 
           {/* Existing Programs */}
           {programs.length > 0 && (
-            <div className="card">
-              <div className="flex items-center justify-between mb-6">
-                <div className="font-medium">Your Programs</div>
-                <button className="toggle" onClick={startQuickMode}>
-                  📋 Browse Templates
-                </button>
-              </div>
-
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                {programs.map(p => (
-                  <div 
-                    key={p.id} 
-                    className={`bg-black/30 rounded-2xl p-5 border transition-all duration-200 group ${
-                      p.is_active 
-                        ? 'border-brand-red/50 bg-brand-red/5' 
-                        : 'border-white/10 hover:border-white/20'
-                    }`}
-                  >
-                    <div className="flex items-start justify-between mb-4">
-                      <div>
-                        <div className="font-semibold text-white/90 mb-1">{p.name}</div>
-                        {p.is_active && (
-                          <span className="text-xs text-brand-red font-medium bg-brand-red/10 px-2 py-1 rounded-full">
-                            Active Program
-                          </span>
-                        )}
-                      </div>
-                      <div className="text-2xl group-hover:scale-110 transition-transform duration-200">💪</div>
-                    </div>
-
-                    <div className="text-sm text-white/70 mb-4 space-y-1">
-                      <div>{p.total_days} training day{p.total_days !== 1 ? 's' : ''}</div>
-                      <div>{p.total_exercises} exercises total</div>
-                      <div className="text-xs text-white/60">
-                        Created {new Date(p.created_at).toLocaleDateString()}
-                      </div>
-                    </div>
-
-                    <div className="flex gap-2">
-                      <button 
-                        className="toggle text-sm flex-1" 
-                        onClick={() => loadProgram(p)}
-                      >
-                        Edit
-                      </button>
-                      {!p.is_active && (
-                        <button 
-                          className="btn text-sm px-3 py-2" 
-                          onClick={() => setActive(p.id)}
-                        >
-                          Activate
-                        </button>
-                      )}
-                      <button 
-                        className="toggle text-sm px-3 py-2 text-red-400 hover:bg-red-500/20" 
-                        onClick={() => deleteProgram(p.id)}
-                      >
-                        ✕
-                      </button>
-                    </div>
+            <motion.div
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+            >
+              <AnimatedCard>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-2">
+                    <LayoutGrid className="w-5 h-5 text-zinc-400" />
+                    <span className="font-semibold text-white">Your Programs</span>
+                    <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full">
+                      {programs.length}
+                    </span>
                   </div>
-                ))}
-              </div>
-            </div>
+                  <button className="toggle text-sm" onClick={startQuickMode}>
+                    <Sparkles className="w-4 h-4" />
+                    Browse Templates
+                  </button>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {programs.map((p, idx) => (
+                    <motion.div
+                      key={p.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.05 * idx }}
+                      className={`relative bg-gradient-to-br rounded-2xl p-5 border transition-all duration-300 group hover:shadow-lg ${
+                        p.is_active
+                          ? 'from-brand-red/10 to-orange-500/5 border-brand-red/30 hover:border-brand-red/50'
+                          : 'from-zinc-800/50 to-zinc-900/50 border-white/10 hover:border-white/20'
+                      }`}
+                    >
+                      {p.is_active && (
+                        <div className="absolute -top-2 -right-2">
+                          <span className="flex h-5 w-5">
+                            <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-red/40"></span>
+                            <span className="relative inline-flex rounded-full h-5 w-5 bg-brand-red items-center justify-center">
+                              <Check className="w-3 h-3 text-white" />
+                            </span>
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex-1 min-w-0">
+                          <div className="font-semibold text-white truncate mb-1">{p.name}</div>
+                          {p.is_active && (
+                            <span className="inline-flex items-center gap-1 text-xs text-brand-red font-medium bg-brand-red/10 px-2 py-0.5 rounded-full">
+                              <span className="w-1.5 h-1.5 bg-brand-red rounded-full"></span>
+                              Active
+                            </span>
+                          )}
+                        </div>
+                        <div className={`w-10 h-10 rounded-xl flex items-center justify-center transition-all duration-300 ${
+                          p.is_active
+                            ? 'bg-brand-red/20 group-hover:bg-brand-red/30'
+                            : 'bg-zinc-800 group-hover:bg-zinc-700'
+                        }`}>
+                          <Dumbbell className={`w-5 h-5 transition-transform duration-300 group-hover:scale-110 ${
+                            p.is_active ? 'text-brand-red' : 'text-zinc-400'
+                          }`} />
+                        </div>
+                      </div>
+
+                      <div className="text-sm text-zinc-400 mb-4 space-y-1.5">
+                        <div className="flex items-center gap-2">
+                          <Calendar className="w-4 h-4 text-zinc-500" />
+                          <span>{p.total_days} training day{p.total_days !== 1 ? 's' : ''}</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <Target className="w-4 h-4 text-zinc-500" />
+                          <span>{p.total_exercises} exercises total</span>
+                        </div>
+                        <div className="text-xs text-zinc-500">
+                          Created {new Date(p.created_at).toLocaleDateString()}
+                        </div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          className="toggle text-sm flex-1 justify-center"
+                          onClick={() => loadProgram(p)}
+                        >
+                          <Edit3 className="w-4 h-4" />
+                          Edit
+                        </button>
+                        {!p.is_active && (
+                          <button
+                            className="btn text-sm px-3 py-2"
+                            onClick={() => setActive(p.id)}
+                          >
+                            Activate
+                          </button>
+                        )}
+                        <button
+                          className="toggle text-sm px-3 py-2 text-red-400 hover:bg-red-500/20 hover:border-red-500/30"
+                          onClick={() => deleteProgram(p.id)}
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </motion.div>
+                  ))}
+                </div>
+              </AnimatedCard>
+            </motion.div>
           )}
 
           {/* Empty State */}
           {programs.length === 0 && mode === 'list' && (
-            <div className="card text-center py-12">
-              <div className="text-6xl mb-4">💪</div>
-              <div className="font-medium mb-2">Start Your Training Journey</div>
-              <div className="text-white/70 mb-6 max-w-md mx-auto">
-                Choose from proven templates or create your own custom program to reach your fitness goals
-              </div>
-              <div className="flex gap-3 justify-center">
-                <button className="btn" onClick={startQuickMode}>
-                  ⚡ Quick Start Templates
-                </button>
-                <button className="toggle" onClick={startManualMode}>
-                  🎯 Create Custom Program
-                </button>
-              </div>
-            </div>
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 0.2 }}
+            >
+              <AnimatedCard className="text-center py-12">
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-brand-red/20 to-orange-500/20 flex items-center justify-center mx-auto mb-6">
+                  <Dumbbell className="w-10 h-10 text-brand-red" />
+                </div>
+                <h2 className="text-xl font-semibold text-white mb-2">Start Your Training Journey</h2>
+                <p className="text-zinc-400 mb-8 max-w-md mx-auto">
+                  Choose from proven templates or create your own custom program to reach your fitness goals
+                </p>
+                <div className="flex gap-3 justify-center flex-wrap">
+                  <button className="btn" onClick={startQuickMode}>
+                    <Zap className="w-4 h-4" />
+                    Quick Start Templates
+                  </button>
+                  <button className="toggle" onClick={startManualMode}>
+                    <Target className="w-4 h-4" />
+                    Create Custom Program
+                  </button>
+                </div>
+              </AnimatedCard>
+            </motion.div>
           )}
         </main>
       </div>
@@ -671,22 +807,54 @@ export default function ProgramsPage() {
         <BackgroundLogo />
         <Nav />
         <main className="relative z-10 max-w-6xl mx-auto p-4 space-y-6">
-          <div className="flex items-center gap-4 mb-6">
+          {/* Header */}
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="flex items-center gap-4"
+          >
             <button className="toggle" onClick={backToList}>
-              ← Back
+              <ChevronRight className="w-4 h-4 rotate-180" />
+              Back
             </button>
-            <h1 className="text-2xl font-bold">Quick Start Templates</h1>
-          </div>
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-amber-500/20 to-orange-500/20 flex items-center justify-center">
+                <Zap className="w-5 h-5 text-amber-400" />
+              </div>
+              <div>
+                <h1 className="text-2xl font-bold text-white">Quick Start Templates</h1>
+                <p className="text-sm text-zinc-500">Choose a proven program to get started</p>
+              </div>
+            </div>
+          </motion.div>
 
-          <ProgramTemplates onSelectTemplate={handleTemplateSelect} />
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <ProgramTemplates onSelectTemplate={handleTemplateSelect} />
+          </motion.div>
 
-          <div className="card text-center py-8">
-            <div className="font-medium mb-2">Need Something Different?</div>
-            <div className="text-white/70 mb-4">Create a fully custom program from scratch</div>
-            <button className="btn" onClick={startManualMode}>
-              🎯 Create Custom Program
-            </button>
-          </div>
+          <motion.div
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <AnimatedCard className="text-center py-10 bg-gradient-to-br from-zinc-800/50 to-zinc-900/50">
+              <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-red/20 to-orange-500/20 flex items-center justify-center mx-auto mb-4">
+                <Target className="w-7 h-7 text-brand-red" />
+              </div>
+              <h3 className="font-semibold text-white mb-2">Need Something Different?</h3>
+              <p className="text-zinc-400 mb-6 max-w-sm mx-auto">
+                Create a fully custom program tailored to your specific goals
+              </p>
+              <button className="btn" onClick={startManualMode}>
+                <Plus className="w-4 h-4" />
+                Create Custom Program
+              </button>
+            </AnimatedCard>
+          </motion.div>
         </main>
       </div>
     )
@@ -694,290 +862,392 @@ export default function ProgramsPage() {
 
   // Manual/Edit Mode - Full program creation interface
   return (
-    <div className="relative min-h-screen bg-black">
+    <div className="relative min-h-screen bg-black pb-24">
       <BackgroundLogo />
       <Nav />
       <main className="relative z-10 max-w-6xl mx-auto p-4 space-y-6">
-        <div className="flex items-center gap-4 mb-6">
+        {/* Header */}
+        <motion.div
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center gap-4"
+        >
           <button className="toggle" onClick={backToList}>
-            ← Back to Programs
+            <ChevronRight className="w-4 h-4 rotate-180" />
+            Back
           </button>
-          <h1 className="text-2xl font-bold">
-            {selected ? 'Edit Program' : 'Create Program'}
-          </h1>
-        </div>
+          <div className="flex items-center gap-3">
+            <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+              selected
+                ? 'bg-gradient-to-br from-amber-500/20 to-orange-500/20'
+                : 'bg-gradient-to-br from-brand-red/20 to-orange-500/20'
+            }`}>
+              {selected ? (
+                <Edit3 className="w-5 h-5 text-amber-400" />
+              ) : (
+                <Plus className="w-5 h-5 text-brand-red" />
+              )}
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">
+                {selected ? 'Edit Program' : 'Create Program'}
+              </h1>
+              <p className="text-sm text-zinc-500">
+                {selected ? 'Modify your existing program' : 'Build your custom training plan'}
+              </p>
+            </div>
+          </div>
+        </motion.div>
 
         {/* Program Name */}
-        <div className="card">
-          <div className="font-medium mb-4">📋 Program Details</div>
-          <label className="block">
-            <div className="mb-2 text-sm text-white/80 font-medium">Program Name</div>
-            <input
-              type="text"
-              className="input w-full"
-              value={pName}
-              onChange={e => setPName(e.target.value)}
-              placeholder="e.g., Upper/Lower 4-Day Split"
-            />
-          </label>
-        </div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+        >
+          <AnimatedCard>
+            <div className="flex items-center gap-2 mb-4">
+              <Dumbbell className="w-5 h-5 text-zinc-400" />
+              <span className="font-semibold text-white">Program Details</span>
+            </div>
+            <label className="block">
+              <div className="mb-2 text-sm text-zinc-400 font-medium">Program Name</div>
+              <input
+                type="text"
+                className="input w-full max-w-md"
+                value={pName}
+                onChange={e => setPName(e.target.value)}
+                placeholder="e.g., Upper/Lower 4-Day Split"
+              />
+            </label>
+          </AnimatedCard>
+        </motion.div>
 
         {/* Training Days */}
-        <div className="card">
-          <div className="flex items-center justify-between mb-6">
-            <div className="font-medium">🗓️ Training Days</div>
-            <button className="btn" onClick={addDay}>
-              + Add Day
-            </button>
-          </div>
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.2 }}
+        >
+          <AnimatedCard>
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-2">
+                <Calendar className="w-5 h-5 text-zinc-400" />
+                <span className="font-semibold text-white">Training Days</span>
+                <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full">
+                  {days.length}
+                </span>
+              </div>
+              <button className="btn text-sm" onClick={addDay}>
+                <Plus className="w-4 h-4" />
+                Add Day
+              </button>
+            </div>
 
-          <div className="space-y-6">
-            {days.map((day, dayIdx) => {
-              const isExpanded = expandedDays.has(dayIdx)
-              const dayName = day.name || `Day ${dayIdx + 1}`
-              const dowsText = day.dows.length > 0 ? day.dows.map(d => DOWS[d]).join(', ') : 'No days assigned'
-              
-              return (
-                <div key={dayIdx} className="bg-black/30 rounded-2xl overflow-hidden">
-                  {/* Collapsible Header */}
-                  <div 
-                    className="flex items-center justify-between p-5 cursor-pointer hover:bg-black/40 transition-colors"
-                    onClick={() => toggleDayExpanded(dayIdx)}
+            <div className="space-y-4">
+              {days.map((day, dayIdx) => {
+                const isExpanded = expandedDays.has(dayIdx)
+                const dayName = day.name || `Day ${dayIdx + 1}`
+                const dowsText = day.dows.length > 0 ? day.dows.map(d => DOWS[d]).join(', ') : 'No days assigned'
+
+                return (
+                  <motion.div
+                    key={dayIdx}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: 0.05 * dayIdx }}
+                    className={`rounded-2xl overflow-hidden border transition-all duration-300 ${
+                      isExpanded
+                        ? 'bg-gradient-to-br from-zinc-800/80 to-zinc-900/80 border-white/10'
+                        : 'bg-black/30 border-white/5 hover:border-white/10'
+                    }`}
                   >
-                    <div className="flex items-center gap-4">
-                      <div className="text-lg">
-                        {isExpanded ? '▼' : '▶'}
+                    {/* Collapsible Header */}
+                    <div
+                      className="flex items-center justify-between p-4 cursor-pointer hover:bg-white/5 transition-colors"
+                      onClick={() => toggleDayExpanded(dayIdx)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className={`w-8 h-8 rounded-lg flex items-center justify-center transition-all duration-300 ${
+                          isExpanded ? 'bg-brand-red/20' : 'bg-zinc-800'
+                        }`}>
+                          <ChevronDown className={`w-4 h-4 transition-transform duration-300 ${
+                            isExpanded ? 'rotate-0 text-brand-red' : '-rotate-90 text-zinc-400'
+                          }`} />
+                        </div>
+                        <div>
+                          <div className="font-semibold text-white flex items-center gap-2">
+                            {dayName}
+                            {day.items.length > 0 && (
+                              <span className="text-xs bg-zinc-800 text-zinc-400 px-2 py-0.5 rounded-full">
+                                {day.items.length} exercise{day.items.length !== 1 ? 's' : ''}
+                              </span>
+                            )}
+                          </div>
+                          <div className="text-sm text-zinc-500">
+                            {dowsText}
+                          </div>
+                        </div>
                       </div>
-                      <div>
-                        <div className="font-semibold text-white/90">
-                          {dayName}
-                        </div>
-                        <div className="text-sm text-white/60">
-                          {dowsText} • {day.items.length} exercise{day.items.length !== 1 ? 's' : ''}
-                        </div>
+                      <div className="flex items-center gap-2">
+                        {days.length > 1 && (
+                          <button
+                            className="toggle text-sm px-3 py-2 text-red-400 hover:bg-red-500/20 hover:border-red-500/30"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              removeDay(dayIdx)
+                            }}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        )}
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {days.length > 1 && (
-                        <button
-                          className="toggle text-sm px-3 py-2 text-red-400 hover:bg-red-500/20"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            removeDay(dayIdx)
-                          }}
-                        >
-                          Remove Day
-                        </button>
-                      )}
-                    </div>
-                  </div>
 
-                  {/* Expandable Content */}
-                  {isExpanded && (
-                    <div className="px-5 pb-5 space-y-4 border-t border-white/10">
-                      <div className="pt-4">
-                        <label className="block">
-                          <div className="mb-1 text-sm text-white/80 font-medium">Day Name</div>
-                          <input
-                            type="text"
-                            className="input w-full max-w-xs"
-                            value={day.name}
-                            onChange={e => updateDayName(dayIdx, e.target.value)}
-                            placeholder={`Day ${dayIdx + 1}`}
-                          />
-                        </label>
-                      </div>
-
-                      {/* Days of Week Selector */}
-                      <div>
-                        <div className="mb-2 text-sm text-white/80 font-medium">Training Days</div>
-                        <div className="flex flex-wrap gap-2">
-                          {DOWS.map((dowName, dowIdx) => (
-                            <button
-                              key={dowIdx}
-                              type="button"
-                              className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
-                                day.dows.includes(dowIdx)
-                                  ? 'bg-brand-red/20 border-brand-red text-white border'
-                                  : 'bg-black/40 border border-white/10 text-white/70 hover:bg-black/60'
-                              }`}
-                              onClick={() => toggleDayOfWeek(dayIdx, dowIdx)}
-                            >
-                              {dowName}
-                            </button>
-                          ))}
-                        </div>
-                      </div>
-
-                      {/* Exercise Selection */}
-                      <div>
-                        <div className="mb-3 text-sm text-white/80 font-medium">Add Exercises</div>
-                        
-                        {/* Search and Category Filter */}
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
-                          <div>
+                    {/* Expandable Content */}
+                    {isExpanded && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        transition={{ duration: 0.2 }}
+                        className="px-4 pb-4 space-y-5 border-t border-white/10"
+                      >
+                        <div className="pt-4">
+                          <label className="block">
+                            <div className="mb-2 text-sm text-zinc-400 font-medium">Day Name</div>
                             <input
                               type="text"
-                              className="input w-full"
-                              placeholder="Search exercises..."
-                              value={search}
-                              onChange={e => setSearch(e.target.value)}
+                              className="input w-full max-w-xs"
+                              value={day.name}
+                              onChange={e => updateDayName(dayIdx, e.target.value)}
+                              placeholder={`Day ${dayIdx + 1}`}
                             />
+                          </label>
+                        </div>
+
+                        {/* Days of Week Selector */}
+                        <div>
+                          <div className="mb-2 text-sm text-zinc-400 font-medium flex items-center gap-2">
+                            <Calendar className="w-4 h-4" />
+                            Schedule
                           </div>
-                          <div>
-                            <select
-                              className="input w-full"
-                              value={selectedCategory}
-                              onChange={e => setSelectedCategory(e.target.value as typeof CATEGORIES[number])}
-                            >
-                              <option value="all">All Categories</option>
-                              <option value="barbell">Barbell</option>
-                              <option value="dumbbell">Dumbbell</option>
-                              <option value="machine">Machine</option>
-                              <option value="cable">Cable</option>
-                              <option value="other">Other</option>
-                            </select>
+                          <div className="flex flex-wrap gap-2">
+                            {DOWS.map((dowName, dowIdx) => (
+                              <button
+                                key={dowIdx}
+                                type="button"
+                                className={`px-4 py-2 rounded-xl text-sm font-medium transition-all duration-200 ${
+                                  day.dows.includes(dowIdx)
+                                    ? 'bg-brand-red/20 border-brand-red/50 text-white border shadow-sm shadow-brand-red/10'
+                                    : 'bg-zinc-900 border border-zinc-700 text-zinc-400 hover:bg-zinc-800 hover:text-zinc-300'
+                                }`}
+                                onClick={() => toggleDayOfWeek(dayIdx, dowIdx)}
+                              >
+                                {dowName}
+                              </button>
+                            ))}
                           </div>
                         </div>
 
-                        {/* Exercise List and Current Exercises */}
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                          {/* Available Exercises */}
-                          <div>
-                            <div className="text-xs text-white/60 mb-2 font-medium">Available Exercises</div>
-                            <div className="max-h-48 overflow-y-auto bg-black/20 rounded-xl p-3 space-y-2">
-                              {filteredExercises.slice(0, 50).map(exercise => (
-                                <button
-                                  key={exercise.id}
-                                  className="w-full text-left bg-black/30 hover:bg-black/50 rounded-lg p-3 text-sm transition-all duration-200 group"
-                                  onClick={() => addExerciseToDay(dayIdx, exercise)}
-                                >
-                                  <div className="flex items-center justify-between">
-                                    <div>
-                                      <div className="font-medium text-white/90">{exercise.name}</div>
-                                      <div className="text-xs text-white/60 capitalize">{exercise.category}</div>
-                                    </div>
-                                    <span className="text-brand-red/70 group-hover:text-brand-red opacity-0 group-hover:opacity-100 transition-opacity">
-                                      +
-                                    </span>
-                                  </div>
-                                </button>
-                              ))}
-                              
-                              {search.trim() && (
-                                <button
-                                  className="w-full bg-brand-red/10 hover:bg-brand-red/20 border border-brand-red/30 rounded-lg p-3 text-sm transition-all duration-200"
-                                  onClick={() => addCustomExerciseToDay(dayIdx)}
-                                >
-                                  <div className="text-brand-red font-medium">
-                                    + Create "{search.trim()}"
-                                  </div>
-                                  <div className="text-xs text-white/60 mt-1">
-                                    Add as new {selectedCategory === 'all' ? 'other' : selectedCategory} exercise
-                                  </div>
-                                </button>
-                              )}
-                              
-                              {filteredExercises.length === 0 && !search.trim() && (
-                                <div className="text-white/60 text-center py-4 text-sm">
-                                  No exercises found
-                                </div>
-                              )}
+                        {/* Exercise Selection */}
+                        <div>
+                          <div className="mb-3 text-sm text-zinc-400 font-medium flex items-center gap-2">
+                            <Target className="w-4 h-4" />
+                            Exercises
+                          </div>
+
+                          {/* Search and Category Filter */}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-4">
+                            <div className="relative">
+                              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-zinc-500" />
+                              <input
+                                type="text"
+                                className="input w-full pl-10"
+                                placeholder="Search exercises..."
+                                value={search}
+                                onChange={e => setSearch(e.target.value)}
+                              />
+                            </div>
+                            <div>
+                              <select
+                                className="input w-full"
+                                value={selectedCategory}
+                                onChange={e => setSelectedCategory(e.target.value as typeof CATEGORIES[number])}
+                              >
+                                <option value="all">All Categories</option>
+                                <option value="barbell">Barbell</option>
+                                <option value="dumbbell">Dumbbell</option>
+                                <option value="machine">Machine</option>
+                                <option value="cable">Cable</option>
+                                <option value="other">Other</option>
+                              </select>
                             </div>
                           </div>
 
-                          {/* Current Day Exercises */}
-                          <div>
-                            <div className="text-xs text-white/60 mb-2 font-medium">Day {dayIdx + 1} Exercises ({day.items.length})</div>
-                            <div className="space-y-3">
-                              {day.items.map((item, itemIdx) => (
-                                <div key={itemIdx} className="bg-black/20 rounded-xl p-4">
-                                  <div className="flex items-start justify-between mb-3">
-                                    <div className="font-medium text-white/90">{item.display_name}</div>
-                                    <div className="flex items-center gap-1">
-                                      <button
-                                        className="toggle text-xs p-1"
-                                        onClick={() => moveExercise(dayIdx, itemIdx, 'up')}
-                                        disabled={itemIdx === 0}
-                                      >
-                                        ↑
-                                      </button>
-                                      <button
-                                        className="toggle text-xs p-1"
-                                        onClick={() => moveExercise(dayIdx, itemIdx, 'down')}
-                                        disabled={itemIdx === day.items.length - 1}
-                                      >
-                                        ↓
-                                      </button>
-                                      <button
-                                        className="toggle text-xs p-1 text-red-400 hover:bg-red-500/20"
-                                        onClick={() => removeExerciseFromDay(dayIdx, itemIdx)}
-                                      >
-                                        ✕
-                                      </button>
+                          {/* Exercise List and Current Exercises */}
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                            {/* Available Exercises */}
+                            <div>
+                              <div className="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wide">
+                                Available Exercises
+                              </div>
+                              <div className="max-h-52 overflow-y-auto bg-zinc-900/50 rounded-xl p-2 space-y-1">
+                                {filteredExercises.slice(0, 50).map(exercise => (
+                                  <button
+                                    key={exercise.id}
+                                    className="w-full text-left bg-zinc-800/50 hover:bg-zinc-800 rounded-lg p-3 text-sm transition-all duration-200 group border border-transparent hover:border-zinc-700"
+                                    onClick={() => addExerciseToDay(dayIdx, exercise)}
+                                  >
+                                    <div className="flex items-center justify-between">
+                                      <div>
+                                        <div className="font-medium text-white">{exercise.name}</div>
+                                        <div className="text-xs text-zinc-500 capitalize">{exercise.category}</div>
+                                      </div>
+                                      <div className="w-6 h-6 rounded-full bg-brand-red/10 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Plus className="w-3 h-3 text-brand-red" />
+                                      </div>
+                                    </div>
+                                  </button>
+                                ))}
+
+                                {search.trim() && (
+                                  <button
+                                    className="w-full bg-brand-red/10 hover:bg-brand-red/20 border border-brand-red/30 rounded-lg p-3 text-sm transition-all duration-200"
+                                    onClick={() => addCustomExerciseToDay(dayIdx)}
+                                  >
+                                    <div className="flex items-center gap-2 text-brand-red font-medium">
+                                      <Plus className="w-4 h-4" />
+                                      Create "{search.trim()}"
+                                    </div>
+                                    <div className="text-xs text-zinc-400 mt-1 ml-6">
+                                      Add as new {selectedCategory === 'all' ? 'other' : selectedCategory} exercise
+                                    </div>
+                                  </button>
+                                )}
+
+                                {filteredExercises.length === 0 && !search.trim() && (
+                                  <div className="text-zinc-500 text-center py-6 text-sm">
+                                    <Target className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                    No exercises found
+                                  </div>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Current Day Exercises */}
+                            <div>
+                              <div className="text-xs text-zinc-500 mb-2 font-medium uppercase tracking-wide">
+                                Day {dayIdx + 1} Exercises ({day.items.length})
+                              </div>
+                              <div className="space-y-2">
+                                {day.items.map((item, itemIdx) => (
+                                  <div
+                                    key={itemIdx}
+                                    className="bg-zinc-900/50 rounded-xl p-3 border border-zinc-800 hover:border-zinc-700 transition-all duration-200"
+                                  >
+                                    <div className="flex items-start justify-between mb-3">
+                                      <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-md bg-brand-red/10 flex items-center justify-center text-xs font-medium text-brand-red">
+                                          {itemIdx + 1}
+                                        </div>
+                                        <div className="font-medium text-white">{item.display_name}</div>
+                                      </div>
+                                      <div className="flex items-center gap-1">
+                                        <button
+                                          className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors disabled:opacity-30"
+                                          onClick={() => moveExercise(dayIdx, itemIdx, 'up')}
+                                          disabled={itemIdx === 0}
+                                        >
+                                          <ArrowUp className="w-3 h-3 text-zinc-400" />
+                                        </button>
+                                        <button
+                                          className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-zinc-700 flex items-center justify-center transition-colors disabled:opacity-30"
+                                          onClick={() => moveExercise(dayIdx, itemIdx, 'down')}
+                                          disabled={itemIdx === day.items.length - 1}
+                                        >
+                                          <ArrowDown className="w-3 h-3 text-zinc-400" />
+                                        </button>
+                                        <button
+                                          className="w-7 h-7 rounded-lg bg-zinc-800 hover:bg-red-500/20 flex items-center justify-center transition-colors"
+                                          onClick={() => removeExerciseFromDay(dayIdx, itemIdx)}
+                                        >
+                                          <X className="w-3 h-3 text-red-400" />
+                                        </button>
+                                      </div>
+                                    </div>
+
+                                    <div className="grid grid-cols-2 gap-3">
+                                      <div>
+                                        <label className="block">
+                                          <div className="text-xs text-zinc-500 mb-1">Sets</div>
+                                          <input
+                                            type="number"
+                                            min={1}
+                                            max={20}
+                                            className="input w-full text-center text-sm"
+                                            value={item.default_sets}
+                                            onChange={e => updateExerciseSets(dayIdx, itemIdx, Number(e.target.value) || 1)}
+                                          />
+                                        </label>
+                                      </div>
+                                      <div>
+                                        <label className="block">
+                                          <div className="text-xs text-zinc-500 mb-1">Reps</div>
+                                          <input
+                                            type="number"
+                                            min={0}
+                                            max={100}
+                                            className="input w-full text-center text-sm"
+                                            value={item.default_reps === 0 ? '' : item.default_reps}
+                                            onChange={e => updateExerciseReps(dayIdx, itemIdx, Number(e.target.value) || 0)}
+                                            placeholder="varies"
+                                          />
+                                        </label>
+                                      </div>
                                     </div>
                                   </div>
-                                  
-                                  <div className="grid grid-cols-2 gap-3">
-                                    <div>
-                                      <label className="block">
-                                        <div className="text-xs text-white/70 mb-1">Sets</div>
-                                        <input
-                                          type="number"
-                                          min={1}
-                                          max={20}
-                                          className="input w-full text-center"
-                                          value={item.default_sets}
-                                          onChange={e => updateExerciseSets(dayIdx, itemIdx, Number(e.target.value) || 1)}
-                                        />
-                                      </label>
-                                    </div>
-                                    <div>
-                                      <label className="block">
-                                        <div className="text-xs text-white/70 mb-1">Reps (optional)</div>
-                                        <input
-                                          type="number"
-                                          min={0}
-                                          max={100}
-                                          className="input w-full text-center"
-                                          value={item.default_reps === 0 ? '' : item.default_reps}
-                                          onChange={e => updateExerciseReps(dayIdx, itemIdx, Number(e.target.value) || 0)}
-                                          placeholder="varies"
-                                        />
-                                      </label>
-                                    </div>
+                                ))}
+
+                                {day.items.length === 0 && (
+                                  <div className="text-zinc-500 text-center py-8 text-sm bg-zinc-900/50 rounded-xl border border-dashed border-zinc-700">
+                                    <Dumbbell className="w-8 h-8 mx-auto mb-2 opacity-50" />
+                                    No exercises added yet
                                   </div>
-                                </div>
-                              ))}
-                              
-                              {day.items.length === 0 && (
-                                <div className="text-white/60 text-center py-8 text-sm bg-black/20 rounded-xl">
-                                  No exercises added yet
-                                </div>
-                              )}
+                                )}
+                              </div>
                             </div>
                           </div>
                         </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )
-            })}
-          </div>
-        </div>
+                      </motion.div>
+                    )}
+                  </motion.div>
+                )
+              })}
+            </div>
+          </AnimatedCard>
+        </motion.div>
 
         {/* Save Button */}
-        <div className="sticky bottom-4 bg-black/90 backdrop-blur-sm rounded-2xl p-4 border border-white/10">
-          <div className="flex gap-3">
-            <button className="btn flex-1" onClick={saveProgram}>
-              {selected ? 'Update Program' : 'Create Program'}
-            </button>
-            <button className="toggle px-6" onClick={backToList}>
-              Cancel
-            </button>
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.3 }}
+          className="fixed bottom-4 left-4 right-4 max-w-6xl mx-auto z-30"
+        >
+          <div className="bg-zinc-900/95 backdrop-blur-lg rounded-2xl p-4 border border-white/10 shadow-2xl shadow-black/50">
+            <div className="flex gap-3">
+              <button className="btn flex-1" onClick={saveProgram}>
+                <Check className="w-4 h-4" />
+                {selected ? 'Update Program' : 'Create Program'}
+              </button>
+              <button className="toggle px-6" onClick={backToList}>
+                <X className="w-4 h-4" />
+                Cancel
+              </button>
+            </div>
           </div>
-        </div>
+        </motion.div>
       </main>
     </div>
   )
