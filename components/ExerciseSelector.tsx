@@ -22,37 +22,116 @@ type ExerciseSelectorProps = {
 // Map exercise names to body parts for better organization
 function getBodyPart(exerciseName: string): BodyPartCategory {
   const name = exerciseName.toLowerCase()
-  
-  // Chest
-  if (name.includes('bench') || name.includes('chest') || name.includes('press') && (name.includes('chest') || name.includes('incline') || name.includes('decline')) || name.includes('fly') || name.includes('dip')) {
-    return 'chest'
-  }
-  
-  // Back
-  if (name.includes('row') || name.includes('pull') || name.includes('lat') || name.includes('back') || name.includes('deadlift') || name.includes('chin')) {
-    return 'back'
-  }
-  
-  // Shoulders
-  if (name.includes('shoulder') || name.includes('lateral') || name.includes('overhead') || name.includes('military') || name.includes('arnold') || name.includes('raise')) {
+
+  // Check for specific exercise patterns first (most specific to least specific)
+
+  // Shoulders - check early to catch "shoulder press", "face pull", "lateral raise" etc.
+  if (
+    name.includes('shoulder') ||
+    name.includes('lateral raise') ||
+    name.includes('front raise') ||
+    name.includes('rear delt') ||
+    name.includes('face pull') ||
+    name.includes('overhead press') ||
+    name.includes('military press') ||
+    name.includes('arnold') ||
+    name.includes('upright row')
+  ) {
     return 'shoulders'
   }
-  
-  // Arms
-  if (name.includes('curl') || name.includes('tricep') || name.includes('bicep') || name.includes('extension') || name.includes('arm')) {
+
+  // Arms - check before back to catch "tricep pushdown", "bicep curl" etc.
+  if (
+    name.includes('curl') ||
+    name.includes('tricep') ||
+    name.includes('bicep') ||
+    name.includes('pushdown') ||
+    name.includes('skullcrusher') ||
+    name.includes('skull crusher') ||
+    name.includes('hammer') ||
+    name.includes('preacher') ||
+    name.includes('concentration')
+  ) {
     return 'arms'
   }
-  
-  // Legs
-  if (name.includes('squat') || name.includes('leg') || name.includes('calf') || name.includes('lunge') || name.includes('quad') || name.includes('hamstring') || name.includes('thigh')) {
+
+  // Legs - check before back to catch "leg press", "leg curl" etc.
+  if (
+    name.includes('squat') ||
+    name.includes('leg') ||
+    name.includes('calf') ||
+    name.includes('lunge') ||
+    name.includes('quad') ||
+    name.includes('hamstring') ||
+    name.includes('thigh') ||
+    name.includes('glute') ||
+    name.includes('hip thrust') ||
+    name.includes('rdl') ||
+    (name.includes('romanian') && name.includes('deadlift'))
+  ) {
     return 'legs'
   }
-  
+
+  // Chest - be more specific about "press" to avoid false positives
+  if (
+    name.includes('bench') ||
+    name.includes('chest') ||
+    name.includes('pec') ||
+    name.includes('fly') ||
+    name.includes('flye') ||
+    name.includes('dip') ||
+    name.includes('push up') ||
+    name.includes('pushup') ||
+    name.includes('push-up') ||
+    (name.includes('press') && (name.includes('incline') || name.includes('decline') || name.includes('flat')))
+  ) {
+    return 'chest'
+  }
+
+  // Back - now safe to check after shoulders/arms/legs/chest
+  if (
+    name.includes('row') ||
+    name.includes('pull-up') ||
+    name.includes('pullup') ||
+    name.includes('pull up') ||
+    name.includes('pulldown') ||
+    name.includes('lat') ||
+    name.includes('back') ||
+    name.includes('deadlift') ||
+    name.includes('chin-up') ||
+    name.includes('chinup') ||
+    name.includes('chin up') ||
+    name.includes('shrug') ||
+    name.includes('hyperextension') ||
+    name.includes('good morning')
+  ) {
+    return 'back'
+  }
+
   // Core
-  if (name.includes('crunch') || name.includes('plank') || name.includes('abs') || name.includes('core') || name.includes('sit')) {
+  if (
+    name.includes('crunch') ||
+    name.includes('plank') ||
+    name.includes('abs') ||
+    name.includes('core') ||
+    name.includes('sit-up') ||
+    name.includes('situp') ||
+    name.includes('sit up') ||
+    name.includes('russian twist') ||
+    name.includes('leg raise') ||
+    name.includes('hanging') ||
+    name.includes('ab wheel') ||
+    name.includes('cable crunch') ||
+    name.includes('woodchop')
+  ) {
     return 'core'
   }
-  
+
+  // Fallback: check for generic "press" without other context - likely shoulders (overhead press)
+  if (name.includes('press') && !name.includes('leg')) {
+    return 'shoulders'
+  }
+
   return 'other'
 }
 
