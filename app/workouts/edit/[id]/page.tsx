@@ -12,6 +12,7 @@ import {
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
 import { getLastWorkoutSetsForExercises } from '@/lib/workoutSuggestions'
+import { useDraftAutoSave, getTimeAgo } from '@/hooks/useDraftAutoSave'
 import { AnimatedCard } from '@/components/ui/Card'
 import { Button } from '@/components/ui/Button'
 import { BottomSheet, ConfirmDialog } from '@/components/ui/BottomSheet'
@@ -328,9 +329,26 @@ export default function EditWorkoutPage() {
   // Sheets
   const [showExerciseSheet, setShowExerciseSheet] = useState(false)
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+  const [showRestoreConfirm, setShowRestoreConfirm] = useState(false)
   const [exerciseSearch, setExerciseSearch] = useState('')
 
   const userIdRef = useRef<string | null>(null)
+  const initialLoadRef = useRef(true)
+  const pendingDraftRef = useRef<any>(null)
+
+  // Draft auto-save for edit page
+  const draftKey = `workout-edit-draft-${workoutId}`
+  const {
+    saveDraft,
+    loadDraft,
+    clearDraft,
+    hasDraft,
+    lastSaved,
+  } = useDraftAutoSave({
+    draftKey,
+    autoSaveInterval: 15000, // Save every 15 seconds
+    enabled: !loading,
+  })
 
   // Load workout data
   useEffect(() => {
@@ -453,7 +471,78 @@ export default function EditWorkoutPage() {
     }
 
     setLoading(false)
+
+    // Check for saved draft after loading
+    const existingDraft = loadDraft()
+    if (existingDraft && existingDraft.items.length > 0) {
+      pendingDraftRef.current = existingDraft
+      setShowRestoreConfirm(true)
+    }
+
+    initialLoadRef.current = false
   }
+
+  // Restore draft data
+  const restoreDraft = useCallback(() => {
+    const draft = pendingDraftRef.current
+    if (!draft) return
+
+    // Restore exercises
+    if (draft.items && draft.items.length > 0) {
+      const restoredExercises: WorkoutExercise[] = draft.items.map((item: any) => ({
+        id: item.id || Math.random().toString(36).substring(7),
+        exerciseId: item.exerciseId,
+        name: item.name,
+        sets: item.sets.map((s: any) => ({
+          weight: s.weight || 0,
+          reps: s.reps || 0,
+          isWarmup: s.isWarmup || false,
+          isCompleted: s.isCompleted || false,
+        })),
+        lastWorkout: item.lastWorkout,
+      }))
+      setExercises(restoredExercises)
+      if (restoredExercises.length > 0) {
+        setExpandedId(restoredExercises[0].id)
+      }
+    }
+
+    // Restore metadata
+    if (draft.customTitle !== undefined) setTitle(draft.customTitle)
+    if (draft.note !== undefined) setNotes(draft.note)
+    if (draft.location !== undefined) setLocation(draft.location)
+
+    pendingDraftRef.current = null
+    setShowRestoreConfirm(false)
+    toast.success('Draft restored!')
+  }, [toast])
+
+  // Discard draft
+  const discardDraft = useCallback(() => {
+    clearDraft()
+    pendingDraftRef.current = null
+    setShowRestoreConfirm(false)
+  }, [clearDraft])
+
+  // Auto-save draft when data changes
+  useEffect(() => {
+    if (loading || initialLoadRef.current) return
+
+    const draftData = {
+      items: exercises.map((ex) => ({
+        id: ex.id,
+        exerciseId: ex.exerciseId,
+        name: ex.name,
+        sets: ex.sets,
+        lastWorkout: ex.lastWorkout,
+      })),
+      note: notes,
+      customTitle: title,
+      location: location,
+    }
+
+    saveDraft(draftData)
+  }, [exercises, notes, title, location, loading, saveDraft])
 
   // Add exercise
   const addExercise = useCallback(async (ex: Exercise) => {
@@ -601,6 +690,7 @@ export default function EditWorkoutPage() {
         }
       }
 
+      clearDraft()
       toast.success('Workout updated!')
       router.push('/history')
     } catch (error: any) {
@@ -675,7 +765,14 @@ export default function EditWorkoutPage() {
               <ArrowLeft className="w-5 h-5" />
               <span>Back</span>
             </Link>
-            <h1 className="text-lg font-semibold">Edit Workout</h1>
+            <div className="text-center">
+              <h1 className="text-lg font-semibold">Edit Workout</h1>
+              {lastSaved && (
+                <p className="text-xs text-green-500">
+                  Draft saved {getTimeAgo(lastSaved)}
+                </p>
+              )}
+            </div>
             <button
               onClick={() => setShowDeleteConfirm(true)}
               className="p-2 text-red-400 hover:bg-red-500/20 rounded-lg transition-colors"
@@ -865,6 +962,17 @@ export default function EditWorkoutPage() {
         message="This will permanently delete this workout and all its data. This cannot be undone."
         confirmText="Delete"
         variant="danger"
+      />
+
+      {/* Restore Draft Confirmation */}
+      <ConfirmDialog
+        isOpen={showRestoreConfirm}
+        onClose={discardDraft}
+        onConfirm={restoreDraft}
+        title="Restore Draft?"
+        message={`You have unsaved changes from ${pendingDraftRef.current ? getTimeAgo(pendingDraftRef.current.timestamp) : 'earlier'}. Would you like to restore them?`}
+        confirmText="Restore"
+        cancelText="Discard"
       />
     </div>
   )

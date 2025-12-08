@@ -16,11 +16,28 @@ export async function isDemoVisitor(): Promise<boolean> {
 /**
  * Returns the real session user id if logged in,
  * otherwise returns the demo user's id when demo mode is ON.
+ *
+ * Uses getSession() first which can auto-refresh expired tokens,
+ * then falls back to getUser() for validation.
  */
 export async function getActiveUserId(): Promise<string | null> {
   try {
-    const { data } = await supabase.auth.getUser()
-    if (data?.user?.id) return data.user.id
+    // First try getSession which can auto-refresh expired tokens
+    const { data: sessionData, error: sessionError } = await supabase.auth.getSession()
+
+    if (sessionData?.session?.user?.id) {
+      return sessionData.session.user.id
+    }
+
+    // If session failed or expired, try refreshing explicitly
+    if (sessionError || !sessionData?.session) {
+      const { data: refreshData } = await supabase.auth.refreshSession()
+      if (refreshData?.session?.user?.id) {
+        return refreshData.session.user.id
+      }
+    }
+
+    // Fall back to demo mode if enabled
     if (DEMO && DEMO_USER_ID) return DEMO_USER_ID
     return null
   } catch {
