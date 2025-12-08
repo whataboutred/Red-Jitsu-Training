@@ -159,47 +159,53 @@ export const Modal = ({ isOpen, onClose, children, title, size = 'md' }: ModalPr
             onClick={onClose}
           />
 
-          {/* Modal */}
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95, y: 20 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.95, y: 20 }}
-            transition={{ type: 'spring', damping: 25, stiffness: 300 }}
-            className={`
-              fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2
-              w-[calc(100%-2rem)] ${modalSizes[size]}
-              bg-zinc-900 rounded-2xl border border-white/10
-              shadow-2xl overflow-hidden
-            `}
-            style={{
-              maxHeight: 'min(calc(100vh - 4rem), calc(100dvh - 4rem))',
-            }}
+          {/* Modal Container - Flexbox centering for reliable mobile support */}
+          <div
+            className="fixed inset-0 z-50 flex items-center justify-center p-4 pointer-events-none"
+            style={{ padding: 'max(16px, env(safe-area-inset-left)) max(16px, env(safe-area-inset-right))' }}
           >
-            {/* Header */}
-            {title && (
-              <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
-                <h2 className="text-lg font-semibold text-white">{title}</h2>
-                <button
-                  onClick={onClose}
-                  className="p-2 text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-white/5"
-                >
-                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                  </svg>
-                </button>
-              </div>
-            )}
-
-            {/* Content */}
-            <div
-              className="p-4 overflow-y-auto"
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 300 }}
+              className={`
+                w-full ${modalSizes[size]}
+                bg-zinc-900 rounded-2xl border border-white/10
+                shadow-2xl overflow-hidden pointer-events-auto
+                box-border
+              `}
               style={{
-                maxHeight: 'calc(100dvh - 10rem)',
+                maxHeight: 'min(calc(100vh - 2rem), calc(100dvh - 2rem))',
+                maxWidth: `min(${size === 'sm' ? '24rem' : size === 'lg' ? '32rem' : size === 'full' ? '100%' : '28rem'}, calc(100vw - 32px))`,
               }}
             >
-              {children}
-            </div>
-          </motion.div>
+              {/* Header */}
+              {title && (
+                <div className="flex items-center justify-between px-4 py-3 border-b border-white/5 flex-shrink-0">
+                  <h2 className="text-lg font-semibold text-white truncate pr-2">{title}</h2>
+                  <button
+                    onClick={onClose}
+                    className="p-2 text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-white/5 flex-shrink-0"
+                  >
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+                </div>
+              )}
+
+              {/* Content */}
+              <div
+                className="p-4 overflow-y-auto overflow-x-hidden"
+                style={{
+                  maxHeight: 'calc(100dvh - 10rem)',
+                }}
+              >
+                {children}
+              </div>
+            </motion.div>
+          </div>
         </>
       )}
     </AnimatePresence>

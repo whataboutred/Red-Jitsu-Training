@@ -590,27 +590,27 @@ function WorkoutSummaryModal({
           <Check className="w-10 h-10 text-emerald-400" />
         </div>
 
-        <div>
-          <h3 className="text-xl font-bold text-white mb-1">{summary.title || 'Workout'}</h3>
-          <p className="text-zinc-400">Great job! Here's your summary:</p>
+        <div className="max-w-full overflow-hidden">
+          <h3 className="text-xl font-bold text-white mb-1 break-words">{summary.title || 'Workout'}</h3>
+          <p className="text-zinc-400">Great job! Here&apos;s your summary:</p>
         </div>
 
-        <div className="grid grid-cols-2 gap-4">
-          <div className="bg-zinc-800 rounded-xl p-4">
-            <p className="text-2xl font-bold text-white">{summary.duration}m</p>
-            <p className="text-sm text-zinc-400">Duration</p>
+        <div className="grid grid-cols-2 gap-3">
+          <div className="bg-zinc-800 rounded-xl p-3 min-w-0">
+            <p className="text-xl sm:text-2xl font-bold text-white truncate">{summary.duration}m</p>
+            <p className="text-xs sm:text-sm text-zinc-400">Duration</p>
           </div>
-          <div className="bg-zinc-800 rounded-xl p-4">
-            <p className="text-2xl font-bold text-white">{summary.exercises}</p>
-            <p className="text-sm text-zinc-400">Exercises</p>
+          <div className="bg-zinc-800 rounded-xl p-3 min-w-0">
+            <p className="text-xl sm:text-2xl font-bold text-white truncate">{summary.exercises}</p>
+            <p className="text-xs sm:text-sm text-zinc-400">Exercises</p>
           </div>
-          <div className="bg-zinc-800 rounded-xl p-4">
-            <p className="text-2xl font-bold text-white">{summary.sets}</p>
-            <p className="text-sm text-zinc-400">Sets</p>
+          <div className="bg-zinc-800 rounded-xl p-3 min-w-0">
+            <p className="text-xl sm:text-2xl font-bold text-white truncate">{summary.sets}</p>
+            <p className="text-xs sm:text-sm text-zinc-400">Sets</p>
           </div>
-          <div className="bg-zinc-800 rounded-xl p-4">
-            <p className="text-2xl font-bold text-white">{summary.volume.toLocaleString()}</p>
-            <p className="text-sm text-zinc-400">Volume ({summary.unit})</p>
+          <div className="bg-zinc-800 rounded-xl p-3 min-w-0">
+            <p className="text-xl sm:text-2xl font-bold text-white truncate">{summary.volume.toLocaleString()}</p>
+            <p className="text-xs sm:text-sm text-zinc-400">Volume ({summary.unit})</p>
           </div>
         </div>
 
