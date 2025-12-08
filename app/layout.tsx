@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import './globals.css'
 import { ToastProvider } from '@/components/Toast'
 import Navigation from '@/components/Navigation'
+import { AuthProvider } from '@/components/AuthProvider'
 
 export const metadata: Metadata = {
   title: {
@@ -56,9 +57,11 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
   return (
     <html lang="en" className="dark">
       <body className="bg-brand-dark text-white antialiased">
-        <ToastProvider>
-          <Navigation>{children}</Navigation>
-        </ToastProvider>
+        <AuthProvider>
+          <ToastProvider>
+            <Navigation>{children}</Navigation>
+          </ToastProvider>
+        </AuthProvider>
       </body>
     </html>
   )
