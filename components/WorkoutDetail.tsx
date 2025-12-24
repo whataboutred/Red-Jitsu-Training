@@ -32,57 +32,72 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
   useEffect(() => {
     (async () => {
       const userId = await getActiveUserId()
-      if (!userId) return
+      console.log('[WorkoutDetail] Loading workout:', workoutId, 'userId:', userId)
+      if (!userId) {
+        console.log('[WorkoutDetail] No userId, aborting')
+        return
+      }
 
-      // Load workout details
-      const { data: w } = await supabase
+      // Load everything in a single query from workouts table (handles RLS better)
+      const { data: workoutData, error: workoutError } = await supabase
         .from('workouts')
-        .select('performed_at,title')
+        .select(`
+          performed_at,
+          title,
+          workout_exercises(
+            id,
+            exercise_id,
+            display_name,
+            order_index,
+            sets(id, weight, reps, set_type, set_index, completed)
+          )
+        `)
         .eq('id', workoutId)
         .eq('user_id', userId)
         .single()
-      setWorkout(w as any)
 
-      // First get workout_exercises for this workout
-      const { data: workoutExercises } = await supabase
-        .from('workout_exercises')
-        .select('id, exercise_id')
-        .eq('workout_id', workoutId)
+      console.log('[WorkoutDetail] Query result:', workoutData, 'error:', workoutError)
 
-      if (workoutExercises && workoutExercises.length > 0) {
-        // Get all workout_exercise IDs
-        const wexIds = workoutExercises.map(we => we.id)
+      if (workoutData) {
+        setWorkout({ performed_at: workoutData.performed_at, title: workoutData.title })
 
-        // Load sets for these workout_exercises
-        const { data: s } = await supabase
-          .from('sets')
-          .select('id, workout_exercise_id, weight, reps, set_type, set_index, completed')
-          .in('workout_exercise_id', wexIds)
-          .order('set_index', { ascending: true })
+        const workoutExercises = (workoutData as any).workout_exercises || []
+        console.log('[WorkoutDetail] workout_exercises count:', workoutExercises.length)
 
-        // Create a map of workout_exercise_id to exercise_id
-        const wexToExercise = new Map(workoutExercises.map(we => [we.id, we.exercise_id]))
+        if (workoutExercises.length > 0) {
+          // Build exercise name map from display_name
+          const exerciseNameMap: Exercise[] = workoutExercises.map((wex: any) => ({
+            id: wex.exercise_id,
+            name: wex.display_name
+          }))
+          setExercises(exerciseNameMap)
 
-        // Transform the data to match the expected format
-        const transformedSets = (s || []).map((set: any) => ({
-          id: set.id,
-          exercise_id: wexToExercise.get(set.workout_exercise_id),
-          weight: set.weight,
-          reps: set.reps,
-          set_type: set.set_type,
-          set_index: set.set_index,
-          completed: set.completed ?? false
-        }))
-        setSets(transformedSets)
+          // Transform nested data to flat sets array
+          const allSets: WorkoutSet[] = []
+          workoutExercises.forEach((wex: any) => {
+            const exerciseSets = wex.sets || []
+            console.log('[WorkoutDetail] Exercise', wex.display_name, 'has', exerciseSets.length, 'sets')
+            exerciseSets.forEach((set: any) => {
+              allSets.push({
+                id: set.id,
+                exercise_id: wex.exercise_id,
+                weight: set.weight,
+                reps: set.reps,
+                set_type: set.set_type,
+                set_index: set.set_index,
+                completed: set.completed ?? false
+              })
+            })
+          })
+          console.log('[WorkoutDetail] Total sets found:', allSets.length)
+          setSets(allSets)
+        } else {
+          console.log('[WorkoutDetail] No workout_exercises found')
+          setSets([])
+        }
       } else {
-        setSets([])
+        console.log('[WorkoutDetail] No workout data returned')
       }
-
-      // Load exercises
-      const { data: e } = await supabase
-        .from('exercises')
-        .select('id,name')
-      setExercises((e || []) as Exercise[])
 
       setLoading(false)
     })()
@@ -227,7 +242,13 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
 
 
           {!sets.length && (
-            <div className="text-white/60">No sets recorded for this workout.</div>
+            <div className="text-white/60 space-y-2">
+              <div>No sets recorded for this workout.</div>
+              <div className="text-xs text-white/40">
+                This workout may have been saved before the data tracking was fully set up,
+                or the exercise data wasn't saved properly.
+              </div>
+            </div>
           )}
         </div>
       </div>
