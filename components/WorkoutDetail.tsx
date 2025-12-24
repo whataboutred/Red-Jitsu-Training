@@ -58,12 +58,11 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
 
       setWorkout({ performed_at: workoutData.performed_at, title: workoutData.title })
 
-      // Get workout_exercises first (without nested sets)
+      // Get workout_exercises using .in() like history page does (works with RLS)
       const { data: workoutExercises, error: wexError } = await supabase
         .from('workout_exercises')
-        .select('id, exercise_id, display_name, order_index')
-        .eq('workout_id', workoutId)
-        .order('order_index')
+        .select('id, exercise_id, display_name, order_index, workout_id')
+        .in('workout_id', [workoutId])
 
       console.log('[WorkoutDetail] workout_exercises result:', workoutExercises?.length, 'error:', wexError)
 
