@@ -172,41 +172,70 @@ export async function getLastThreeWorkouts(
     let data: any[] = []
 
     try {
+      // First get workout_exercises for this exercise
+      const { data: wexData } = await supabase
+        .from('workout_exercises')
+        .select('id, workout_id')
+        .eq('exercise_id', exerciseId)
+
+      if (!wexData || wexData.length === 0) {
+        return []
+      }
+
+      const workoutIds = [...new Set(wexData.map(we => we.workout_id))]
+
+      // Then get the workouts with all their data
       let query = supabase
         .from('workouts')
         .select(`
           id,
           performed_at,
           location,
-          workout_exercises!inner(
+          workout_exercises(
             exercise_id,
             sets(weight, reps, set_type, set_index)
           )
         `)
         .eq('user_id', userId)
-        .eq('workout_exercises.exercise_id', exerciseId)
-        .order('performed_at', { ascending: false })
-        .limit(10) // Fetch more to account for location filtering
-
-      data = await querySupabase<any>(query, { timeout: 8000, maxRetries: 2 })
-    } catch (queryError) {
-      // Fallback without location column
-      let fallbackQuery = supabase
-        .from('workouts')
-        .select(`
-          id,
-          performed_at,
-          workout_exercises!inner(
-            exercise_id,
-            sets(weight, reps, set_type, set_index)
-          )
-        `)
-        .eq('user_id', userId)
-        .eq('workout_exercises.exercise_id', exerciseId)
+        .in('id', workoutIds)
         .order('performed_at', { ascending: false })
         .limit(10)
 
-      data = await querySupabase<any>(fallbackQuery, { timeout: 8000, maxRetries: 2 })
+      data = await querySupabase<any>(query, { timeout: 8000, maxRetries: 2 })
+    } catch (queryError) {
+      // Fallback: try simpler query
+      try {
+        const { data: wexData } = await supabase
+          .from('workout_exercises')
+          .select('id, workout_id')
+          .eq('exercise_id', exerciseId)
+
+        if (!wexData || wexData.length === 0) {
+          return []
+        }
+
+        const workoutIds = [...new Set(wexData.map(we => we.workout_id))]
+
+        let fallbackQuery = supabase
+          .from('workouts')
+          .select(`
+            id,
+            performed_at,
+            workout_exercises(
+              exercise_id,
+              sets(weight, reps, set_type, set_index)
+            )
+          `)
+          .eq('user_id', userId)
+          .in('id', workoutIds)
+          .order('performed_at', { ascending: false })
+          .limit(10)
+
+        data = await querySupabase<any>(fallbackQuery, { timeout: 8000, maxRetries: 2 })
+      } catch (fallbackError) {
+        console.error('[getLastThreeWorkouts] Fallback query also failed:', fallbackError)
+        return []
+      }
     }
 
     const results: ExerciseSuggestion[] = []
