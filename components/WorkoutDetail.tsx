@@ -38,19 +38,15 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
         return
       }
 
-      // Query workout WITH nested workout_exercises in single query
-      // This leverages the explicit user_id filter to bypass RLS issues
+      // Query workout first (without nested - that doesn't work with RLS)
       const { data: workoutResults, error: workoutError } = await supabase
         .from('workouts')
-        .select(`
-          id, performed_at, title,
-          workout_exercises(id, exercise_id, display_name, order_index)
-        `)
+        .select('id, performed_at, title')
         .eq('id', workoutId)
         .eq('user_id', userId)
         .limit(1)
 
-      console.log('[WorkoutDetail] Workout+exercises result:', workoutResults, 'error:', workoutError)
+      console.log('[WorkoutDetail] Workout result:', workoutResults, 'error:', workoutError)
 
       const workoutData = workoutResults?.[0]
       if (!workoutData) {
@@ -61,9 +57,14 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
 
       setWorkout({ performed_at: workoutData.performed_at, title: workoutData.title })
 
-      // Extract workout_exercises from nested query result
-      const workoutExercises = (workoutData as any).workout_exercises || []
-      console.log('[WorkoutDetail] workout_exercises from nested:', workoutExercises.length)
+      // Query workout_exercises EXACTLY like history page does (which works)
+      // History page uses: .from('workout_exercises').select('workout_id').in('workout_id', workoutIds)
+      const { data: workoutExercises, error: wexError } = await supabase
+        .from('workout_exercises')
+        .select('id, exercise_id, display_name, order_index')
+        .in('workout_id', [workoutId])
+
+      console.log('[WorkoutDetail] workout_exercises (direct query):', workoutExercises?.length, 'error:', wexError, 'raw data:', JSON.stringify(workoutExercises))
 
       if (workoutExercises && workoutExercises.length > 0) {
         // Build exercise name map from display_name
