@@ -347,17 +347,33 @@ function HistoryClient() {
   }
 
   async function loadProgressionData(userId: string) {
+    // First get workouts for this user in the date range
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: workouts } = await supabase
+      .from('workouts')
+      .select('id, performed_at')
+      .eq('user_id', userId)
+      .gte('performed_at', ninetyDaysAgo)
+      .order('performed_at', { ascending: true })
+
+    if (!workouts || workouts.length === 0) {
+      setProgressionData([])
+      return
+    }
+
+    const workoutIds = workouts.map(w => w.id)
+    const workoutDateMap = new Map(workouts.map(w => [w.id, w.performed_at]))
+
+    // Then get workout_exercises and sets for those workouts
     const { data: exerciseData } = await supabase
       .from('workout_exercises')
       .select(`
         exercise_id,
         display_name,
-        workouts!inner(performed_at, user_id),
+        workout_id,
         sets(weight, reps, set_type)
       `)
-      .eq('workouts.user_id', userId)
-      .gte('workouts.performed_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
-      .order('workouts.performed_at', { ascending: true })
+      .in('workout_id', workoutIds)
 
     if (exerciseData) {
       const exerciseMap = new Map<string, {
@@ -367,7 +383,9 @@ function HistoryClient() {
 
       exerciseData.forEach((item: any) => {
         const exerciseId = item.exercise_id
-        const date = new Date(item.workouts.performed_at).toISOString().split('T')[0]
+        const performedAt = workoutDateMap.get(item.workout_id)
+        if (!performedAt) return
+        const date = new Date(performedAt).toISOString().split('T')[0]
 
         const workingSets = item.sets?.filter((s: any) => s.set_type === 'working' && s.weight > 0) || []
         const maxWeight = workingSets.length > 0 ? Math.max(...workingSets.map((s: any) => s.weight)) : 0
@@ -526,19 +544,34 @@ function HistoryClient() {
       return false
     }
 
-    // Fetch exercise data from last 90 days
+    // First get workouts for this user in the date range
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: workouts } = await supabase
+      .from('workouts')
+      .select('id, performed_at')
+      .eq('user_id', userId)
+      .gte('performed_at', ninetyDaysAgo)
+      .order('performed_at', { ascending: true })
+
+    if (!workouts || workouts.length === 0) {
+      setExerciseProgress([])
+      return false
+    }
+
+    const workoutIds = workouts.map(w => w.id)
+    const workoutDateMap = new Map(workouts.map(w => [w.id, w.performed_at]))
+
+    // Then get workout_exercises and sets for those workouts, filtered by exercise IDs
     const { data: exerciseData } = await supabase
       .from('workout_exercises')
       .select(`
         exercise_id,
         display_name,
-        workouts!inner(performed_at, user_id),
+        workout_id,
         sets(weight, reps, set_type)
       `)
-      .eq('workouts.user_id', userId)
+      .in('workout_id', workoutIds)
       .in('exercise_id', Array.from(activeExerciseIds))
-      .gte('workouts.performed_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
-      .order('workouts.performed_at', { ascending: true })
 
     if (!exerciseData || exerciseData.length === 0) {
       setExerciseProgress([])
@@ -553,7 +586,9 @@ function HistoryClient() {
 
     exerciseData.forEach((item: any) => {
       const exerciseId = item.exercise_id
-      const date = new Date(item.workouts.performed_at).toISOString().split('T')[0]
+      const performedAt = workoutDateMap.get(item.workout_id)
+      if (!performedAt) return
+      const date = new Date(performedAt).toISOString().split('T')[0]
 
       const workingSets = item.sets?.filter((s: any) => s.set_type === 'working' && s.weight > 0) || []
       if (workingSets.length === 0) return
@@ -621,18 +656,33 @@ function HistoryClient() {
   }
 
   async function calculateExerciseProgressFromAllWorkouts(userId: string) {
-    // Fetch all exercise data from last 90 days (not filtered by program)
+    // First get workouts for this user in the date range
+    const ninetyDaysAgo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+    const { data: workouts } = await supabase
+      .from('workouts')
+      .select('id, performed_at')
+      .eq('user_id', userId)
+      .gte('performed_at', ninetyDaysAgo)
+      .order('performed_at', { ascending: true })
+
+    if (!workouts || workouts.length === 0) {
+      setExerciseProgress([])
+      return
+    }
+
+    const workoutIds = workouts.map(w => w.id)
+    const workoutDateMap = new Map(workouts.map(w => [w.id, w.performed_at]))
+
+    // Then get workout_exercises and sets for those workouts
     const { data: exerciseData } = await supabase
       .from('workout_exercises')
       .select(`
         exercise_id,
         display_name,
-        workouts!inner(performed_at, user_id),
+        workout_id,
         sets(weight, reps, set_type)
       `)
-      .eq('workouts.user_id', userId)
-      .gte('workouts.performed_at', new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString())
-      .order('workouts.performed_at', { ascending: true })
+      .in('workout_id', workoutIds)
 
     if (!exerciseData || exerciseData.length === 0) {
       setExerciseProgress([])
@@ -647,7 +697,9 @@ function HistoryClient() {
 
     exerciseData.forEach((item: any) => {
       const exerciseId = item.exercise_id
-      const date = new Date(item.workouts.performed_at).toISOString().split('T')[0]
+      const performedAt = workoutDateMap.get(item.workout_id)
+      if (!performedAt) return
+      const date = new Date(performedAt).toISOString().split('T')[0]
 
       const workingSets = item.sets?.filter((s: any) => s.set_type === 'working' && s.weight > 0) || []
       if (workingSets.length === 0) return
