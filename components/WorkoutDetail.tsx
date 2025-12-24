@@ -58,16 +58,10 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
 
       setWorkout({ performed_at: workoutData.performed_at, title: workoutData.title })
 
-      // Get workout_exercises separately (like edit page does)
+      // Get workout_exercises first (without nested sets)
       const { data: workoutExercises, error: wexError } = await supabase
         .from('workout_exercises')
-        .select(`
-          id,
-          exercise_id,
-          display_name,
-          order_index,
-          sets(id, weight, reps, set_type, set_index, completed)
-        `)
+        .select('id, exercise_id, display_name, order_index')
         .eq('workout_id', workoutId)
         .order('order_index')
 
@@ -81,23 +75,30 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
         }))
         setExercises(exerciseNameMap)
 
-        // Transform nested data to flat sets array
-        const allSets: WorkoutSet[] = []
-        workoutExercises.forEach((wex: any) => {
-          const exerciseSets = wex.sets || []
-          console.log('[WorkoutDetail] Exercise', wex.display_name, 'has', exerciseSets.length, 'sets')
-          exerciseSets.forEach((set: any) => {
-            allSets.push({
-              id: set.id,
-              exercise_id: wex.exercise_id,
-              weight: set.weight,
-              reps: set.reps,
-              set_type: set.set_type,
-              set_index: set.set_index,
-              completed: set.completed ?? false
-            })
-          })
-        })
+        // Get sets separately using workout_exercise IDs
+        const wexIds = workoutExercises.map(we => we.id)
+        const { data: setsData, error: setsError } = await supabase
+          .from('sets')
+          .select('id, workout_exercise_id, weight, reps, set_type, set_index, completed')
+          .in('workout_exercise_id', wexIds)
+          .order('set_index')
+
+        console.log('[WorkoutDetail] sets result:', setsData?.length, 'error:', setsError)
+
+        // Map workout_exercise_id to exercise_id
+        const wexToExercise = new Map(workoutExercises.map(we => [we.id, we.exercise_id]))
+
+        // Transform to flat sets array
+        const allSets: WorkoutSet[] = (setsData || []).map((set: any) => ({
+          id: set.id,
+          exercise_id: wexToExercise.get(set.workout_exercise_id),
+          weight: set.weight,
+          reps: set.reps,
+          set_type: set.set_type,
+          set_index: set.set_index,
+          completed: set.completed ?? false
+        }))
+
         console.log('[WorkoutDetail] Total sets found:', allSets.length)
         setSets(allSets)
       } else {
