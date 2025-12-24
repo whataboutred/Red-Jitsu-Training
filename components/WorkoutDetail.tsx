@@ -43,35 +43,40 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
         .single()
       setWorkout(w as any)
 
-      // Load sets through the proper table structure
-      const { data: s } = await supabase
-        .from('sets')
-        .select(`
-          id,
-          weight,
-          reps,
-          set_type,
-          set_index,
-          completed,
-          workout_exercises!inner(
-            exercise_id,
-            workout_id
-          )
-        `)
-        .eq('workout_exercises.workout_id', workoutId)
-        .order('set_index', { ascending: true })
+      // First get workout_exercises for this workout
+      const { data: workoutExercises } = await supabase
+        .from('workout_exercises')
+        .select('id, exercise_id')
+        .eq('workout_id', workoutId)
 
-      // Transform the data to match the expected format
-      const transformedSets = (s || []).map((set: any) => ({
-        id: set.id,
-        exercise_id: set.workout_exercises.exercise_id,
-        weight: set.weight,
-        reps: set.reps,
-        set_type: set.set_type,
-        set_index: set.set_index,
-        completed: set.completed ?? false
-      }))
-      setSets(transformedSets)
+      if (workoutExercises && workoutExercises.length > 0) {
+        // Get all workout_exercise IDs
+        const wexIds = workoutExercises.map(we => we.id)
+
+        // Load sets for these workout_exercises
+        const { data: s } = await supabase
+          .from('sets')
+          .select('id, workout_exercise_id, weight, reps, set_type, set_index, completed')
+          .in('workout_exercise_id', wexIds)
+          .order('set_index', { ascending: true })
+
+        // Create a map of workout_exercise_id to exercise_id
+        const wexToExercise = new Map(workoutExercises.map(we => [we.id, we.exercise_id]))
+
+        // Transform the data to match the expected format
+        const transformedSets = (s || []).map((set: any) => ({
+          id: set.id,
+          exercise_id: wexToExercise.get(set.workout_exercise_id),
+          weight: set.weight,
+          reps: set.reps,
+          set_type: set.set_type,
+          set_index: set.set_index,
+          completed: set.completed ?? false
+        }))
+        setSets(transformedSets)
+      } else {
+        setSets([])
+      }
 
       // Load exercises
       const { data: e } = await supabase
