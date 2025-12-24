@@ -50,36 +50,66 @@ export default function ProgramAnalytics({ showDetailed = false, programId }: Pr
     const startDateStr = startDate.toISOString().split('T')[0]
 
     try {
-      // Get workouts with program data
+      // First get workouts with program data
       const { data: workouts } = await supabase
         .from('workouts')
         .select(`
           id,
           created_at,
           program_id,
-          programs!inner(name),
-          exercises!inner(
-            id,
-            name,
-            category,
-            sets!inner(
-              weight,
-              reps,
-              completed
-            )
-          )
+          programs(name)
         `)
         .eq('user_id', userId)
         .gte('created_at', startDateStr)
         .not('program_id', 'is', null)
-        .eq('exercises.sets.completed', true)
+
+      if (!workouts || workouts.length === 0) {
+        setStats([])
+        setLoading(false)
+        return
+      }
+
+      // Get workout_exercises and sets for these workouts
+      const workoutIds = workouts.map(w => w.id)
+      const { data: workoutExercises } = await supabase
+        .from('workout_exercises')
+        .select(`
+          workout_id,
+          exercise_id,
+          display_name,
+          sets(weight, reps, completed)
+        `)
+        .in('workout_id', workoutIds)
+
+      // Create a map of workout_id to exercises data
+      const workoutExerciseMap = new Map<string, any[]>()
+      workoutExercises?.forEach(we => {
+        if (!workoutExerciseMap.has(we.workout_id)) {
+          workoutExerciseMap.set(we.workout_id, [])
+        }
+        // Only include sets that are completed
+        const completedSets = we.sets?.filter((s: any) => s.completed) || []
+        if (completedSets.length > 0) {
+          workoutExerciseMap.get(we.workout_id)!.push({
+            id: we.exercise_id,
+            name: we.display_name,
+            sets: completedSets
+          })
+        }
+      })
+
+      // Enrich workouts with exercises data
+      const enrichedWorkouts = workouts.map(w => ({
+        ...w,
+        exercises: workoutExerciseMap.get(w.id) || []
+      }))
 
       if (programId) {
         // Filter to specific program if provided
       }
 
       const programStats: ProgramUsageStats[] = []
-      const programGroups = groupWorkoutsByProgram(workouts || [])
+      const programGroups = groupWorkoutsByProgram(enrichedWorkouts || [])
 
       for (const [pId, workoutData] of Object.entries(programGroups)) {
         const totalWorkouts = workoutData.workouts.length
