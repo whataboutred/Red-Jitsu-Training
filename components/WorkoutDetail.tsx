@@ -57,20 +57,13 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
 
       setWorkout({ performed_at: workoutData.performed_at, title: workoutData.title })
 
-      // Step 2: Query workout_exercises with nested sets - EXACTLY like loadProgressionData does
-      // This pattern is proven to work in history page (lines 403-411)
+      // Step 2: Query workout_exercises (without nested sets to avoid 400 error)
       const { data: exerciseData, error: exerciseError } = await supabase
         .from('workout_exercises')
-        .select(`
-          id,
-          exercise_id,
-          display_name,
-          order_index,
-          sets(id, weight, reps, set_type, set_index, completed)
-        `)
-        .in('workout_id', [workoutId])
+        .select('id, exercise_id, display_name, order_index')
+        .eq('workout_id', workoutId)
 
-      console.log('[WorkoutDetail] Exercise data:', JSON.stringify(exerciseData), 'error:', exerciseError)
+      console.log('[WorkoutDetail] Exercise data:', exerciseData, 'error:', exerciseError)
 
       if (exerciseData && exerciseData.length > 0) {
         // Build exercise name map
@@ -80,22 +73,29 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
         }))
         setExercises(exerciseNameMap)
 
-        // Transform nested sets to flat array
-        const allSets: WorkoutSet[] = []
-        for (const wex of exerciseData) {
-          const exerciseSets = (wex as any).sets || []
-          for (const set of exerciseSets) {
-            allSets.push({
-              id: set.id,
-              exercise_id: wex.exercise_id,
-              weight: set.weight,
-              reps: set.reps,
-              set_type: set.set_type,
-              set_index: set.set_index,
-              completed: set.completed ?? false
-            })
-          }
-        }
+        // Step 3: Query sets separately using workout_exercise IDs
+        const wexIds = exerciseData.map((wex: any) => wex.id)
+        const { data: setsData, error: setsError } = await supabase
+          .from('sets')
+          .select('id, workout_exercise_id, weight, reps, set_type, set_index, completed')
+          .in('workout_exercise_id', wexIds)
+          .order('set_index')
+
+        console.log('[WorkoutDetail] Sets data:', setsData, 'error:', setsError)
+
+        // Build workout_exercise_id to exercise_id map
+        const wexToExercise = new Map(exerciseData.map((wex: any) => [wex.id, wex.exercise_id]))
+
+        // Transform to flat sets array
+        const allSets: WorkoutSet[] = (setsData || []).map((set: any) => ({
+          id: set.id,
+          exercise_id: wexToExercise.get(set.workout_exercise_id) as string,
+          weight: set.weight,
+          reps: set.reps,
+          set_type: set.set_type,
+          set_index: set.set_index,
+          completed: set.completed ?? false
+        }))
 
         console.log('[WorkoutDetail] Total sets found:', allSets.length)
         setSets(allSets)
