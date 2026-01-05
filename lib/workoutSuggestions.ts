@@ -82,17 +82,16 @@ export async function getLastWorkoutSetsForExercises(
     }
 
     // Group by exercise and find the most recent workout for each
+    // Two-pass approach: first try to match location, then fall back to any location
     const exerciseMap = new Map<string, { date: string; sets: WorkoutSet[] }>()
+    const exerciseMapAnyLocation = new Map<string, { date: string; sets: WorkoutSet[] }>()
 
     for (const workout of data) {
       const workoutDate = workout.performed_at
       const workoutLocation = workout.location // May be null
       const workoutExercises = workout.workout_exercises || []
 
-      // Skip if location filter is active and doesn't match
-      if (location && workoutLocation && workoutLocation !== location) {
-        continue
-      }
+      const locationMatches = !location || !workoutLocation || workoutLocation === location
 
       for (const wex of workoutExercises) {
         const exerciseId = wex.exercise_id
@@ -103,13 +102,7 @@ export async function getLastWorkoutSetsForExercises(
           continue
         }
 
-        // Check if we already have a more recent workout for this exercise
-        // (data is ordered by date desc, so first occurrence is most recent)
-        if (exerciseMap.has(exerciseId)) {
-          continue
-        }
-
-        // Store this workout's sets
+        // Store this workout's sets if we have any
         if (sets.length > 0) {
           const formattedSets = sets
             .sort((a: any, b: any) => (a.set_index || 0) - (b.set_index || 0))
@@ -120,12 +113,32 @@ export async function getLastWorkoutSetsForExercises(
               set_index: s.set_index,
             }))
 
-          exerciseMap.set(exerciseId, {
-            date: workoutDate,
-            sets: formattedSets,
-          })
-          console.log('[workoutSuggestions] Found previous data for exercise:', exerciseId, '- sets:', formattedSets.length)
+          // Track most recent for matching location (or when no location filter)
+          if (locationMatches && !exerciseMap.has(exerciseId)) {
+            exerciseMap.set(exerciseId, {
+              date: workoutDate,
+              sets: formattedSets,
+            })
+            console.log('[workoutSuggestions] Found previous data for exercise:', exerciseId, '- sets:', formattedSets.length, '(location match)')
+          }
+
+          // Also track most recent regardless of location for fallback
+          if (!exerciseMapAnyLocation.has(exerciseId)) {
+            exerciseMapAnyLocation.set(exerciseId, {
+              date: workoutDate,
+              sets: formattedSets,
+            })
+          }
         }
+      }
+    }
+
+    // Merge: use location-matched data when available, otherwise fall back to any location
+    for (const exerciseId of exerciseIds) {
+      if (!exerciseMap.has(exerciseId) && exerciseMapAnyLocation.has(exerciseId)) {
+        const fallbackData = exerciseMapAnyLocation.get(exerciseId)!
+        exerciseMap.set(exerciseId, fallbackData)
+        console.log('[workoutSuggestions] Using fallback data from different location for exercise:', exerciseId)
       }
     }
 
@@ -238,20 +251,16 @@ export async function getLastThreeWorkouts(
       }
     }
 
-    const results: ExerciseSuggestion[] = []
+    // Two-pass approach: prefer matching location, fall back to any location
+    const locationMatchedResults: ExerciseSuggestion[] = []
+    const anyLocationResults: ExerciseSuggestion[] = []
 
     for (const workout of data) {
-      // Stop if we have 3 results
-      if (results.length >= 3) break
-
       const workoutDate = workout.performed_at
       const workoutLocation = workout.location
       const workoutExercises = workout.workout_exercises || []
 
-      // Skip if location filter is active and doesn't match
-      if (location && workoutLocation && workoutLocation !== location) {
-        continue
-      }
+      const locationMatches = !location || !workoutLocation || workoutLocation === location
 
       // Find the exercise in this workout
       const wex = workoutExercises.find((w: any) => w.exercise_id === exerciseId)
@@ -269,15 +278,26 @@ export async function getLastThreeWorkouts(
             set_index: s.set_index,
           }))
 
-        results.push({
+        const suggestion = {
           exerciseId: exerciseId,
           sets: formattedSets,
           workoutDate,
-        })
+        }
+
+        // Track location-matched results
+        if (locationMatches && locationMatchedResults.length < 3) {
+          locationMatchedResults.push(suggestion)
+        }
+
+        // Also track all results for fallback
+        if (anyLocationResults.length < 3) {
+          anyLocationResults.push(suggestion)
+        }
       }
     }
 
-    return results
+    // Return location-matched if we have any, otherwise fall back to any location
+    return locationMatchedResults.length > 0 ? locationMatchedResults : anyLocationResults
   } catch (error) {
     console.error('Error fetching last three workouts:', error)
     return []
