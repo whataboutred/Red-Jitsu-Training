@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion'
 import { Sparkles, RefreshCw, Clock, ChevronDown, ChevronUp } from 'lucide-react'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO } from '@/lib/activeUser'
+import { useDataRefresh } from '@/hooks/useDataRefresh'
 
 type InsightsResponse = {
   content: string
@@ -100,6 +101,12 @@ export default function AIInsights() {
     loadInsights(false)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
+  // When training data or settings change, ask the server again — it
+  // regenerates automatically once the data signature stops matching.
+  useDataRefresh(() => {
+    if (!DEMO && !loading) loadInsights(false)
+  })
 
   // Hide in demo mode — requires real auth for API calls
   if (DEMO) return null

@@ -32,6 +32,7 @@ import { SwipeableRow } from '@/components/ui/SwipeableRow'
 import { ConfirmDialog } from '@/components/ui/BottomSheet'
 import { useToast } from '@/components/Toast'
 import { deleteWorkout, deleteBjjSession, deleteCardioSession } from '@/lib/api'
+import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId } from '@/lib/activeUser'
 import { useSearchParams, useRouter } from 'next/navigation'
@@ -376,25 +377,8 @@ function HistoryClient() {
     })()
   }, [loadHistoryData, router])
 
-  useEffect(() => {
-    const refresh = () => { loadHistoryData() }
-    const handleVisibilityChange = () => {
-      if (!document.hidden) refresh()
-    }
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'workout-data-updated') refresh()
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleVisibilityChange)
-    window.addEventListener('storage', handleStorage)
-    window.addEventListener('workout-data-updated', refresh)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleVisibilityChange)
-      window.removeEventListener('storage', handleStorage)
-      window.removeEventListener('workout-data-updated', refresh)
-    }
-  }, [loadHistoryData])
+  // Refetch when data changes anywhere or the tab regains focus
+  useDataRefresh(loadHistoryData)
 
   const loadMore = async () => {
     if (loadingMore || !hasMore) return
@@ -1027,7 +1011,7 @@ function HistoryClient() {
         <BJJDetail sessionId={highlightId} onClose={closeModal} />
       )}
       {highlightId && highlightType === 'cardio' && (
-        <CardioDetail sessionId={highlightId} onClose={closeModal} onUpdate={() => window.location.reload()} />
+        <CardioDetail sessionId={highlightId} onClose={closeModal} />
       )}
 
       <div className="p-4 space-y-4">

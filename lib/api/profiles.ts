@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabaseClient'
 import { withRetry } from '@/lib/queryUtils'
+import { notifyDataChanged } from '@/lib/dataSync'
 import type { Profile } from '@/types/domain'
 import type { TablesUpdate } from '@/types/database'
 
@@ -50,6 +51,7 @@ export async function upsertProfile(
     .from('profiles')
     .upsert({ id: userId, ...updates }, { onConflict: 'id' })
   if (error) throw error
+  notifyDataChanged()
 }
 
 export async function updateProfile(
@@ -61,4 +63,5 @@ export async function updateProfile(
     .update(updates)
     .eq('id', userId)
   if (error) throw error
+  notifyDataChanged()
 }

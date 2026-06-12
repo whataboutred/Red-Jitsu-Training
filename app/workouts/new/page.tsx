@@ -36,6 +36,7 @@ import { toDatetimeLocal, datetimeLocalToISO } from '@/lib/dateUtils'
 import { useDraftAutoSave, getTimeAgo } from '@/hooks/useDraftAutoSave'
 import { hapticTap, hapticSuccess } from '@/lib/haptics'
 import { detectAndSaveNewPRs, type NewPR } from '@/lib/api/personalRecords'
+import { notifyDataChanged } from '@/lib/dataSync'
 import PRCelebration from '@/components/PRCelebration'
 import { getLastWorkoutSetsForExercises, WorkoutSet as LastWorkoutSet } from '@/lib/workoutSuggestions'
 import { Button, IconButton } from '@/components/ui/Button'
@@ -1325,14 +1326,8 @@ export default function NewWorkoutPage() {
         setShowSummary(true)
       }
 
-      // Notify other pages that workout data changed so they refetch.
-      // localStorage write fires `storage` events in other tabs/windows; the
-      // CustomEvent handles same-window navigation.
-      try {
-        const ts = String(Date.now())
-        localStorage.setItem('workout-data-updated', ts)
-        window.dispatchEvent(new CustomEvent('workout-data-updated', { detail: { ts } }))
-      } catch { /* localStorage may be unavailable */ }
+      // Notify other pages that workout data changed so they refetch
+      notifyDataChanged()
 
       toast.success(`Workout saved! (${verifyWex?.length || 0} exercises, ${verifySets?.length || 0} sets)`)
     } catch (error: any) {

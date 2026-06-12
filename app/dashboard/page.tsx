@@ -23,6 +23,7 @@ import { getDailyQuote, refreshQuote, type Quote } from '@/lib/quoteService'
 import ActivityHeatmap from '@/components/ActivityHeatmap'
 import BackgroundLogo from '@/components/BackgroundLogo'
 import OnboardingWizard from '@/components/OnboardingWizard'
+import { useDataRefresh } from '@/hooks/useDataRefresh'
 
 type Workout = { id: string; performed_at: string; title: string | null }
 type BJJ = {
@@ -242,25 +243,8 @@ export default function Dashboard() {
     return () => { cancelled = true }
   }, [loadDashboardData, router])
 
-  useEffect(() => {
-    const refresh = () => loadDashboardData()
-    const handleVisibilityChange = () => {
-      if (!document.hidden) refresh()
-    }
-    const handleStorage = (e: StorageEvent) => {
-      if (e.key === 'workout-data-updated') refresh()
-    }
-    document.addEventListener('visibilitychange', handleVisibilityChange)
-    window.addEventListener('focus', handleVisibilityChange)
-    window.addEventListener('storage', handleStorage)
-    window.addEventListener('workout-data-updated', refresh)
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibilityChange)
-      window.removeEventListener('focus', handleVisibilityChange)
-      window.removeEventListener('storage', handleStorage)
-      window.removeEventListener('workout-data-updated', refresh)
-    }
-  }, [loadDashboardData])
+  // Refetch when data changes anywhere or the tab regains focus
+  useDataRefresh(loadDashboardData)
 
   const now = new Date()
   const thisWeekKey = weekKey(now)

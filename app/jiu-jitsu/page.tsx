@@ -27,6 +27,8 @@ import { useToast } from '@/components/Toast'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
 import { hapticSuccess } from '@/lib/haptics'
+import { insertBjjSession } from '@/lib/api'
+import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { toDatetimeLocal, datetimeLocalToISO } from '@/lib/dateUtils'
 import { useRouter } from 'next/navigation'
 import BackgroundLogo from '@/components/BackgroundLogo'
@@ -216,6 +218,11 @@ export default function BJJPage() {
     })()
   }, [])
 
+  // Refetch when data changes anywhere or the tab regains focus
+  useDataRefresh(() => {
+    if (!demo && !loading) loadSessionData()
+  })
+
   // Session timer
   useEffect(() => {
     let interval: NodeJS.Timeout
@@ -380,20 +387,14 @@ export default function BJJPage() {
     }
 
     const minutes = Math.min(600, Math.max(5, Number(duration || 60)))
-    const { error } = await supabase
-      .from('bjj_sessions')
-      .insert({
-        user_id: userId,
-        performed_at: datetimeLocalToISO(performedAt),
-        kind: kind === 'Open Mat' ? ('open_mat' as const) : (kind.toLowerCase() as 'class' | 'drilling'),
-        duration_min: minutes,
-        intensity,
-        notes: notes || null
-      })
-
-    if (error) {
-      throw new Error('Save failed: ' + error.message)
-    }
+    await insertBjjSession({
+      user_id: userId,
+      performed_at: datetimeLocalToISO(performedAt),
+      kind: kind === 'Open Mat' ? ('open_mat' as const) : (kind.toLowerCase() as 'class' | 'drilling'),
+      duration_min: minutes,
+      intensity,
+      notes: notes || null
+    })
   }
 
   async function saveOffline() {
