@@ -16,6 +16,42 @@ export async function getProfile(userId: string): Promise<Profile | null> {
   })
 }
 
+/** Returns the profile, creating one with default goals when none exists. */
+export async function ensureProfile(userId: string): Promise<Profile | null> {
+  const existing = await getProfile(userId)
+  if (existing) return existing
+
+  const { data, error } = await supabase
+    .from('profiles')
+    .upsert(
+      {
+        id: userId,
+        unit: 'lb',
+        weekly_goal: 4,
+        bjj_weekly_goal: 2,
+        cardio_weekly_goal: 3,
+        show_strength_goal: true,
+        show_bjj_goal: true,
+        show_cardio_goal: false,
+      },
+      { onConflict: 'id', ignoreDuplicates: false }
+    )
+    .select('*')
+    .single()
+  if (error) throw error
+  return data
+}
+
+export async function upsertProfile(
+  userId: string,
+  updates: Omit<TablesUpdate<'profiles'>, 'id'>
+): Promise<void> {
+  const { error } = await supabase
+    .from('profiles')
+    .upsert({ id: userId, ...updates }, { onConflict: 'id' })
+  if (error) throw error
+}
+
 export async function updateProfile(
   userId: string,
   updates: TablesUpdate<'profiles'>

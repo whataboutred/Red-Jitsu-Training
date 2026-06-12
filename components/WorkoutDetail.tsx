@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import { supabase } from '@/lib/supabaseClient'
+import { deleteWorkout } from '@/lib/api'
 import { getActiveUserId } from '@/lib/activeUser'
 import { X, Edit3, Trash2, Copy, Trophy } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -120,17 +121,7 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
       const userId = await getActiveUserId()
       if (!userId) return
 
-      const { error } = await supabase
-        .from('workouts')
-        .delete()
-        .eq('id', workoutId)
-        .eq('user_id', userId)
-
-      if (error) {
-        toast.error('Failed to delete workout')
-        console.error('Delete error:', error)
-        return
-      }
+      await deleteWorkout(workoutId, userId)
 
       // Close modal and refresh the page
       onClose()

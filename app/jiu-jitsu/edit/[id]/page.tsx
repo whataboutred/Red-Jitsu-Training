@@ -3,7 +3,7 @@
 import Nav from '@/components/Nav'
 import BackgroundLogo from '@/components/BackgroundLogo'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getBjjSession, updateBjjSession } from '@/lib/api'
 import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
@@ -50,12 +50,7 @@ export default function EditJiuJitsuPage() {
       }
 
       // Load existing session data
-      const { data: session } = await supabase
-        .from('bjj_sessions')
-        .select('performed_at,kind,duration_min,intensity,notes')
-        .eq('id', sessionId)
-        .eq('user_id', userId)
-        .single()
+      const session = await getBjjSession(sessionId, userId).catch(() => null)
 
       if (!session) {
         toast.error('Session not found')
@@ -93,23 +88,13 @@ export default function EditJiuJitsuPage() {
     setSaving(true)
     try {
       const minutes = Math.min(600, Math.max(5, Number(duration || 60)))
-      const { error } = await supabase
-        .from('bjj_sessions')
-        .update({
-          performed_at: datetimeLocalToISO(performedAt),
-          kind: kind === 'Open Mat' ? ('open_mat' as const) : (kind.toLowerCase() as 'class' | 'drilling'),
-          duration_min: minutes,
-          intensity,
-          notes: notes || null
-        })
-        .eq('id', sessionId)
-        .eq('user_id', userId)
-
-      if (error) {
-        console.error('Update error:', error)
-        toast.error('Failed to update session: ' + error.message)
-        return
-      }
+      await updateBjjSession(sessionId, userId, {
+        performed_at: datetimeLocalToISO(performedAt),
+        kind: kind === 'Open Mat' ? ('open_mat' as const) : (kind.toLowerCase() as 'class' | 'drilling'),
+        duration_min: minutes,
+        intensity,
+        notes: notes || null
+      })
 
       toast.success('Session updated successfully!')
       router.push(`/history?highlight=${sessionId}&type=bjj`)
