@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getCardioSession, deleteCardioSession } from '@/lib/api'
 import { getActiveUserId } from '@/lib/activeUser'
 import { X, Edit3, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -46,14 +46,7 @@ export default function CardioDetail({
       const userId = await getActiveUserId()
       if (!userId) return
 
-      const { data } = await supabase
-        .from('cardio_sessions')
-        .select('*')
-        .eq('id', sessionId)
-        .eq('user_id', userId)
-        .single()
-
-      setSession(data as CardioSession)
+      setSession(await getCardioSession(sessionId, userId))
     } catch (error) {
       console.error('Error loading cardio session:', error)
     } finally {
@@ -67,18 +60,7 @@ export default function CardioDetail({
       const userId = await getActiveUserId()
       if (!userId) return
 
-      const { error } = await supabase
-        .from('cardio_sessions')
-        .delete()
-        .eq('id', sessionId)
-        .eq('user_id', userId)
-
-      if (error) {
-        toast.error('Failed to delete cardio session')
-        console.error('Delete error:', error)
-        return
-      }
-
+      await deleteCardioSession(sessionId, userId)
       toast.success('Cardio session deleted')
       if (onUpdate) {
         onUpdate()

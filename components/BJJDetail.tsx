@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getBjjSession, deleteBjjSession } from '@/lib/api'
 import { getActiveUserId } from '@/lib/activeUser'
 import { X, Edit3, Trash2 } from 'lucide-react'
 import { useRouter } from 'next/navigation'
@@ -31,16 +31,13 @@ export default function BJJDetail({ sessionId, onClose }: { sessionId: string; o
       const userId = await getActiveUserId()
       if (!userId) return
 
-      // Load BJJ session details
-      const { data: s } = await supabase
-        .from('bjj_sessions')
-        .select('id,performed_at,kind,duration_min,intensity,notes')
-        .eq('id', sessionId)
-        .eq('user_id', userId)
-        .single()
-      
-      setSession(s as BJJSession)
-      setLoading(false)
+      try {
+        setSession(await getBjjSession(sessionId, userId))
+      } catch (error) {
+        console.error('Error loading BJJ session:', error)
+      } finally {
+        setLoading(false)
+      }
     })()
   }, [sessionId])
 
@@ -50,17 +47,7 @@ export default function BJJDetail({ sessionId, onClose }: { sessionId: string; o
       const userId = await getActiveUserId()
       if (!userId) return
 
-      const { error } = await supabase
-        .from('bjj_sessions')
-        .delete()
-        .eq('id', sessionId)
-        .eq('user_id', userId)
-
-      if (error) {
-        toast.error('Failed to delete session')
-        console.error('Delete error:', error)
-        return
-      }
+      await deleteBjjSession(sessionId, userId)
 
       // Close modal and refresh the page
       onClose()

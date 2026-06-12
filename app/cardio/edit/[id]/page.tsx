@@ -3,7 +3,7 @@
 import Nav from '@/components/Nav'
 import BackgroundLogo from '@/components/BackgroundLogo'
 import { useEffect, useState } from 'react'
-import { supabase } from '@/lib/supabaseClient'
+import { getCardioSession, updateCardioSession } from '@/lib/api'
 import { getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
 import Link from 'next/link'
 import { useRouter, useParams } from 'next/navigation'
@@ -63,12 +63,7 @@ export default function EditCardioPage() {
     if (!userId) return
 
     try {
-      const { data: cardioData } = await supabase
-        .from('cardio_sessions')
-        .select('*')
-        .eq('id', cardioId)
-        .eq('user_id', userId)
-        .single()
+      const cardioData = await getCardioSession(cardioId, userId)
 
       if (cardioData) {
         setSession({
@@ -154,26 +149,16 @@ export default function EditCardioPage() {
 
     setSaving(true)
     try {
-      const { error } = await supabase
-        .from('cardio_sessions')
-        .update({
-          activity: session.activity,
-          duration_minutes: session.duration_minutes || null,
-          distance: session.distance || null,
-          distance_unit: session.distance_unit,
-          intensity: session.intensity,
-          calories: session.calories || null,
-          notes: session.notes?.trim() || null,
-          performed_at: datetimeLocalToISO(performedAt)
-        })
-        .eq('id', cardioId)
-        .eq('user_id', userId)
-
-      if (error) {
-        console.error('Save error:', error)
-        toast.error(`Failed to update cardio session: ${error.message}`)
-        return
-      }
+      await updateCardioSession(cardioId, userId, {
+        activity: session.activity,
+        duration_minutes: session.duration_minutes || null,
+        distance: session.distance || null,
+        distance_unit: session.distance_unit,
+        intensity: session.intensity,
+        calories: session.calories || null,
+        notes: session.notes?.trim() || null,
+        performed_at: datetimeLocalToISO(performedAt)
+      })
 
       toast.success('Cardio session updated!')
       router.push('/history')

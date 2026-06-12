@@ -28,6 +28,7 @@ import { BottomSheet, ConfirmDialog } from '@/components/ui/BottomSheet'
 import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton'
 import { useToast } from '@/components/Toast'
 import { supabase } from '@/lib/supabaseClient'
+import { ensureProfile, upsertProfile } from '@/lib/api'
 import { getActiveUserId } from '@/lib/activeUser'
 import { useRouter } from 'next/navigation'
 import DeleteAllData from '@/components/DeleteAllData'
@@ -125,41 +126,18 @@ export default function SettingsPage() {
     if (user?.email) setUserEmail(user.email)
 
     try {
-      let { data: p, error } = await supabase
-        .from('profiles')
-        .select('unit,weekly_goal,target_weeks,goal_start,bjj_weekly_goal,cardio_weekly_goal,show_strength_goal,show_bjj_goal,show_cardio_goal')
-        .eq('id', userId)
-        .maybeSingle()
-
-      if (!p) {
-        const { data: newProfile } = await supabase
-          .from('profiles')
-          .upsert({
-            id: userId,
-            unit: 'lb',
-            weekly_goal: 4,
-            bjj_weekly_goal: 2,
-            cardio_weekly_goal: 3,
-            show_strength_goal: true,
-            show_bjj_goal: true,
-            show_cardio_goal: false
-          }, { onConflict: 'id', ignoreDuplicates: false })
-          .select('unit,weekly_goal,target_weeks,goal_start,bjj_weekly_goal,cardio_weekly_goal,show_strength_goal,show_bjj_goal,show_cardio_goal')
-          .single()
-
-        p = newProfile
-      }
+      const p = await ensureProfile(userId)
 
       if (p) {
-        setUnit(((p as Profile).unit ?? 'lb') as 'lb' | 'kg')
-        setWeeklyGoal((p as Profile).weekly_goal ?? 4)
-        setTargetWeeks(((p as Profile).target_weeks ?? null) as number | null ?? '')
-        setGoalStart(((p as Profile).goal_start ?? null) as string | null ?? '')
-        setBjjWeeklyGoal((p as Profile).bjj_weekly_goal ?? 2)
-        setCardioWeeklyGoal((p as Profile).cardio_weekly_goal ?? 3)
-        setShowStrengthGoal((p as Profile).show_strength_goal ?? true)
-        setShowBjjGoal((p as Profile).show_bjj_goal ?? true)
-        setShowCardioGoal((p as Profile).show_cardio_goal ?? false)
+        setUnit((p.unit ?? 'lb') as 'lb' | 'kg')
+        setWeeklyGoal(p.weekly_goal ?? 4)
+        setTargetWeeks(p.target_weeks ?? '')
+        setGoalStart(p.goal_start ?? '')
+        setBjjWeeklyGoal(p.bjj_weekly_goal ?? 2)
+        setCardioWeeklyGoal(p.cardio_weekly_goal ?? 3)
+        setShowStrengthGoal(p.show_strength_goal ?? true)
+        setShowBjjGoal(p.show_bjj_goal ?? true)
+        setShowCardioGoal(p.show_cardio_goal ?? false)
       }
     } catch (err) {
       console.error('Error in loadUserData:', err)
@@ -235,8 +213,7 @@ export default function SettingsPage() {
 
     setSaving(true)
     try {
-      const { error } = await supabase.from('profiles').upsert({
-        id: userId,
+      await upsertProfile(userId, {
         unit,
         weekly_goal: Math.min(14, Math.max(1, weeklyGoal || 4)),
         target_weeks: targetWeeks === '' ? null : targetWeeks,
@@ -246,12 +223,7 @@ export default function SettingsPage() {
         show_strength_goal: showStrengthGoal,
         show_bjj_goal: showBjjGoal,
         show_cardio_goal: showCardioGoal
-      }, { onConflict: 'id', ignoreDuplicates: false })
-
-      if (error) {
-        toast.error('Failed to save: ' + error.message)
-        return
-      }
+      })
 
       toast.success('Settings saved!')
       setTimeout(() => router.push('/dashboard'), 500)

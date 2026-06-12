@@ -36,7 +36,7 @@ A comprehensive training companion for both strength training and Brazilian Jiu-
 1) Create Supabase project → run `supabase/schema.sql` in SQL Editor.
 2) Copy `.env.local.example` → `.env.local` and paste your project URL & anon key.
 3) `npm install` → `npm run dev` → http://localhost:3000
-4) Sign in with your email (magic link).
+4) Sign in with your email and password.
 
 ## Deploy
 1. Import your repository into Vercel
