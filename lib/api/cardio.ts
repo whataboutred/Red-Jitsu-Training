@@ -1,5 +1,6 @@
 import { supabase } from '@/lib/supabaseClient'
 import { withRetry } from '@/lib/queryUtils'
+import { notifyDataChanged } from '@/lib/dataSync'
 import type { CardioSession } from '@/types/domain'
 import type { TablesInsert, TablesUpdate } from '@/types/database'
 
@@ -44,6 +45,7 @@ export async function insertCardioSession(
 ): Promise<void> {
   const { error } = await supabase.from('cardio_sessions').insert(row)
   if (error) throw error
+  notifyDataChanged()
 }
 
 export async function updateCardioSession(
@@ -57,6 +59,7 @@ export async function updateCardioSession(
     .eq('id', id)
     .eq('user_id', userId)
   if (error) throw error
+  notifyDataChanged()
 }
 
 export async function deleteCardioSession(id: string, userId: string): Promise<void> {
@@ -66,4 +69,5 @@ export async function deleteCardioSession(id: string, userId: string): Promise<v
     .eq('id', id)
     .eq('user_id', userId)
   if (error) throw error
+  notifyDataChanged()
 }

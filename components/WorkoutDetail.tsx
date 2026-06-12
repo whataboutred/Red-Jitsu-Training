@@ -123,9 +123,8 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
 
       await deleteWorkout(workoutId, userId)
 
-      // Close modal and refresh the page
+      // lib/api notifies the open pages, which refetch — no reload needed
       onClose()
-      window.location.reload()
     } catch (error) {
       toast.error('Failed to delete workout')
       console.error('Delete error:', error)

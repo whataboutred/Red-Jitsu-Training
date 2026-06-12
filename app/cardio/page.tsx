@@ -34,6 +34,8 @@ import { toDatetimeLocal, datetimeLocalToISO } from '@/lib/dateUtils'
 import { supabase } from '@/lib/supabaseClient'
 import { getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
 import { hapticSuccess } from '@/lib/haptics'
+import { insertCardioSession } from '@/lib/api'
+import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 import BackgroundLogo from '@/components/BackgroundLogo'
@@ -236,6 +238,11 @@ export default function CardioPage() {
     })()
   }, [])
 
+  // Refetch when data changes anywhere or the tab regains focus
+  useDataRefresh(() => {
+    if (!demo && !loading) loadWeekStats()
+  })
+
   // Timer effect
   useEffect(() => {
     let interval: NodeJS.Timeout
@@ -343,12 +350,7 @@ export default function CardioPage() {
         performed_at: datetimeLocalToISO(performedAt)
       }
 
-      const { error } = await supabase.from('cardio_sessions').insert(sessionData)
-
-      if (error) {
-        toast.error(`Failed to save: ${error.message}`)
-        return
-      }
+      await insertCardioSession(sessionData)
 
       hapticSuccess()
       setShowSuccessModal(true)

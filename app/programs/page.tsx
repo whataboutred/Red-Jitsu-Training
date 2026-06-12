@@ -12,6 +12,8 @@ import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/Toast'
 import { AnimatedCard } from '@/components/ui/Card'
 import { ConfirmDialog } from '@/components/ui/BottomSheet'
+import { notifyDataChanged } from '@/lib/dataSync'
+import { useDataRefresh } from '@/hooks/useDataRefresh'
 import {
   Dumbbell,
   Calendar,
@@ -123,6 +125,11 @@ export default function ProgramsPage() {
       setLoading(false)
     })()
   }, [])
+
+  // Refetch when data changes anywhere or the tab regains focus
+  useDataRefresh(() => {
+    if (!demo && !loading) reloadPrograms()
+  })
 
   if (demo) {
     return (
@@ -344,6 +351,7 @@ export default function ProgramsPage() {
       toast.error('Failed to delete program')
       return
     }
+    notifyDataChanged()
     toast.success('Program deleted')
     if (selected?.id === id) setSelected(null)
     await reloadPrograms()
@@ -625,6 +633,7 @@ export default function ProgramsPage() {
         }
       }
 
+      notifyDataChanged()
       toast.success('Program saved successfully!')
       await reloadPrograms()
       backToList()

@@ -35,6 +35,7 @@ import { isUuid } from '@/lib/validation'
 import { useToast } from '@/components/Toast'
 import { useDraftAutoSave, getTimeAgo } from '@/hooks/useDraftAutoSave'
 import { hapticTap, hapticSuccess } from '@/lib/haptics'
+import { notifyDataChanged } from '@/lib/dataSync'
 import { getLastWorkoutSetsForExercises, WorkoutSet as LastWorkoutSet } from '@/lib/workoutSuggestions'
 import { Button, IconButton } from '@/components/ui/Button'
 import { BottomSheet, Modal, ConfirmDialog } from '@/components/ui/BottomSheet'
@@ -1122,6 +1123,7 @@ export default function EditWorkoutPage() {
 
       clearDraft()
       hapticSuccess()
+      notifyDataChanged()
       toast.success('Workout updated!')
       router.push('/history')
     } catch (error: any) {

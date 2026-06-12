@@ -49,9 +49,8 @@ export default function BJJDetail({ sessionId, onClose }: { sessionId: string; o
 
       await deleteBjjSession(sessionId, userId)
 
-      // Close modal and refresh the page
+      // lib/api notifies the open pages, which refetch — no reload needed
       onClose()
-      window.location.reload()
     } catch (error) {
       toast.error('Failed to delete session')
       console.error('Delete error:', error)
