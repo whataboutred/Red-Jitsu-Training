@@ -884,6 +884,7 @@ export default function BJJPage() {
               <IconButton
                 icon={<X className="w-5 h-5" />}
                 variant="default"
+                className="!rounded-2xl !w-14 !h-14"
                 onClick={() => router.push('/dashboard')}
               />
             </div>

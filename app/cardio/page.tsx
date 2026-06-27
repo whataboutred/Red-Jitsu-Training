@@ -801,7 +801,7 @@ export default function CardioPage() {
             loading={saving}
             disabled={!canSave}
             onClick={handleSave}
-            className="bg-[linear-gradient(to_right,#ef4444_0%,#10b981_38%,#059669_100%)] shadow-lg shadow-emerald-500/30"
+            className="bg-gradient-to-r from-red-500 via-emerald-500 to-emerald-600 hover:from-red-600 hover:via-emerald-600 hover:to-emerald-700 shadow-lg shadow-emerald-500/30"
           >
             {canSave
               ? `Save ${session.activity}${session.duration_minutes ? ` (${session.duration_minutes} min)` : ''}`
@@ -810,6 +810,7 @@ export default function CardioPage() {
           <IconButton
             icon={<X className="w-5 h-5" />}
             variant="default"
+            className="!rounded-2xl !w-14 !h-14"
             onClick={() => router.push('/dashboard')}
           />
         </div>
