@@ -2,6 +2,11 @@ import type { Config } from "tailwindcss"
 
 export default {
   content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
+  // Only apply hover: styles on devices that actually have a hover-capable
+  // pointer. Stops hover states from sticking after a tap on iOS.
+  future: {
+    hoverOnlyWhenSupported: true,
+  },
   theme: {
     extend: {
       fontFamily: {
