@@ -38,13 +38,8 @@ import BackgroundLogo from '@/components/BackgroundLogo'
 type Profile = {
   unit: 'lb' | 'kg' | null
   weekly_goal: number | null
-  target_weeks: number | null
-  goal_start: string | null
   bjj_weekly_goal: number | null
   cardio_weekly_goal: number | null
-  show_strength_goal: boolean | null
-  show_bjj_goal: boolean | null
-  show_cardio_goal: boolean | null
 }
 
 type UserStats = {
@@ -90,8 +85,6 @@ export default function SettingsPage() {
   // Profile settings
   const [unit, setUnit] = useState<'lb' | 'kg'>('lb')
   const [weeklyGoal, setWeeklyGoal] = useState<number>(4)
-  const [targetWeeks, setTargetWeeks] = useState<number | ''>('')
-  const [goalStart, setGoalStart] = useState<string>('')
   const [bjjWeeklyGoal, setBjjWeeklyGoal] = useState<number>(2)
   const [cardioWeeklyGoal, setCardioWeeklyGoal] = useState<number>(3)
 
@@ -129,8 +122,6 @@ export default function SettingsPage() {
       if (p) {
         setUnit((p.unit ?? 'lb') as 'lb' | 'kg')
         setWeeklyGoal(p.weekly_goal ?? 4)
-        setTargetWeeks(p.target_weeks ?? '')
-        setGoalStart(p.goal_start ?? '')
         setBjjWeeklyGoal(p.bjj_weekly_goal ?? 2)
         setCardioWeeklyGoal(p.cardio_weekly_goal ?? 3)
         setCoachContext(p.coach_context ?? '')
@@ -212,8 +203,6 @@ export default function SettingsPage() {
       await upsertProfile(userId, {
         unit,
         weekly_goal: Math.min(14, Math.max(0, weeklyGoal)),
-        target_weeks: targetWeeks === '' ? null : targetWeeks,
-        goal_start: goalStart || null,
         bjj_weekly_goal: Math.min(14, Math.max(0, bjjWeeklyGoal)),
         cardio_weekly_goal: Math.min(14, Math.max(0, cardioWeeklyGoal)),
         coach_context: coachContext.trim() || null

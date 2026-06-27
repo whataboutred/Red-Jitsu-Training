@@ -45,7 +45,7 @@ interface CardioSession {
   duration_minutes?: number
   distance?: number
   distance_unit: 'miles' | 'km'
-  intensity: 'low' | 'moderate' | 'high'
+  intensity: 'low' | 'medium' | 'high'
   calories?: number
   notes?: string
 }
@@ -98,8 +98,8 @@ const INTENSITY_OPTIONS = [
     textColor: 'text-emerald-400'
   },
   {
-    value: 'moderate' as const,
-    label: 'Moderate',
+    value: 'medium' as const,
+    label: 'Medium',
     description: 'Steady effort, breathing harder',
     color: 'bg-amber-500/20',
     activeColor: 'bg-amber-500',
@@ -209,7 +209,7 @@ export default function CardioPage() {
   const [session, setSession] = useState<CardioSession>({
     activity: '',
     distance_unit: 'miles',
-    intensity: 'moderate'
+    intensity: 'medium'
   })
 
   // UI state

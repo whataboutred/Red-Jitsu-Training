@@ -18,14 +18,14 @@ type CardioSession = {
   duration_minutes?: number
   distance?: number
   distance_unit: 'miles' | 'km'
-  intensity: 'low' | 'moderate' | 'high'
+  intensity: 'low' | 'medium' | 'high'
   calories?: number
   notes?: string
 }
 
 const INTENSITY_COLORS = {
   'low': 'bg-green-500/20 text-green-400 border-green-500/30',
-  'moderate': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
+  'medium': 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30',
   'high': 'bg-red-500/20 text-red-400 border-red-500/30'
 }
 
@@ -42,7 +42,7 @@ export default function EditCardioPage() {
   const [session, setSession] = useState<CardioSession>({
     activity: '',
     distance_unit: 'miles',
-    intensity: 'moderate'
+    intensity: 'medium'
   })
 
   useEffect(() => {
@@ -73,7 +73,7 @@ export default function EditCardioPage() {
           duration_minutes: cardioData.duration_minutes || undefined,
           distance: cardioData.distance || undefined,
           distance_unit: cardioData.distance_unit || 'miles',
-          intensity: cardioData.intensity || 'moderate',
+          intensity: cardioData.intensity || 'medium',
           calories: cardioData.calories || undefined,
           notes: cardioData.notes || ''
         })
@@ -275,7 +275,7 @@ export default function EditCardioPage() {
                 Intensity Level
               </label>
               <div className="flex gap-2">
-                {(['low', 'moderate', 'high'] as const).map(intensity => (
+                {(['low', 'medium', 'high'] as const).map(intensity => (
                   <button
                     key={intensity}
                     className={`px-4 py-2 rounded-xl text-sm font-medium capitalize flex-1 transition-all duration-200 ${
