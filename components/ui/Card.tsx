@@ -11,10 +11,13 @@ interface CardProps extends HTMLAttributes<HTMLDivElement> {
 }
 
 const cardVariants = {
-  default: 'bg-surface/80 border-white/[0.07]',
+  // Near-transparent by default so content sits "on the page" (matches Home),
+  // not inside a visible grey box. Use `elevated`/`outline` where a real
+  // surface or boundary is genuinely needed.
+  default: 'bg-white/[0.02] border-transparent',
   elevated: 'bg-surface-elevated/90 border-white/10 shadow-card-hover',
   outline: 'bg-transparent border-white/10',
-  ghost: 'bg-surface/40 border-transparent',
+  ghost: 'bg-transparent border-transparent',
 };
 
 const paddingVariants = {

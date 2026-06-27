@@ -85,7 +85,7 @@ export default function ActivityHeatmap({ activities, streakWeeks = 0 }: Activit
       initial={{ opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.4, ease: 'easeOut' }}
-      className="bg-surface/80 border border-white/[0.07] rounded-xl p-4"
+      className="bg-white/[0.02] rounded-xl p-4"
     >
       {/* Header */}
       <div className="flex items-center justify-between mb-4">

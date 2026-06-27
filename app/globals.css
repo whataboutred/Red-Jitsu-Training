@@ -188,12 +188,11 @@ h1, h2, h3, h4, h5, h6 {
   @apply px-6 py-4 text-lg rounded-2xl;
 }
 
-/* Cards */
+/* Cards — kept near-transparent so content reads as "on the page" (like Home)
+   instead of inside a grey box. */
 .card {
-  @apply bg-surface/80 backdrop-blur-sm;
+  @apply bg-white/[0.02];
   @apply rounded-2xl p-4;
-  @apply border border-white/[0.07];
-  @apply shadow-card;
   @apply transition-all duration-200;
 }
 
