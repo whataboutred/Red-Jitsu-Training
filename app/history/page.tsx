@@ -1027,8 +1027,8 @@ function HistoryClient() {
             {!loading && workouts.length === 0 && bjj.length === 0 && cardio.length === 0 && (
               <AnimatedCard className="text-center py-10">
                 <BarChart3 className="w-12 h-12 text-zinc-600 mx-auto mb-3" />
-                <h3 className="font-semibold text-zinc-500 mb-2">No activity data yet</h3>
-                <p className="text-zinc-500 text-sm mb-6">Start logging workouts, BJJ sessions, or cardio to see your analytics here.</p>
+                <h3 className="text-2xl font-display uppercase text-white mb-2">Your story starts here</h3>
+                <p className="text-zinc-500 text-sm mb-6">Log a workout, a roll, or a run — your trends and records show up here.</p>
                 <Link href="/workouts/new" className="btn inline-flex">
                   Log Your First Workout
                 </Link>
