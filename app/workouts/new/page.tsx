@@ -1565,8 +1565,8 @@ export default function NewWorkoutPage() {
             <div className="w-20 h-20 rounded-2xl bg-brand-red/10 flex items-center justify-center mx-auto mb-5">
               <Dumbbell className="w-10 h-10 text-brand-red/50" />
             </div>
-            <h3 className="text-lg font-semibold text-zinc-300 mb-2">No exercises yet</h3>
-            <p className="text-zinc-500 mb-6 text-sm">Tap below to start building your workout</p>
+            <h3 className="text-2xl font-display uppercase text-white mb-2">Let&apos;s build it</h3>
+            <p className="text-zinc-500 mb-6 text-sm">Add your first exercise and start logging.</p>
             <button onClick={() => setShowExerciseSelector(true)} className="btn px-8">
               Add First Exercise
             </button>
