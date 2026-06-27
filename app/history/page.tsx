@@ -9,11 +9,9 @@ import {
   ChevronRight,
   Clock,
   Dumbbell,
-  Flame,
   Target,
   TrendingUp,
   TrendingDown,
-  Trophy,
   Zap,
   Activity,
   Filter,
@@ -40,7 +38,6 @@ import WorkoutDetail from '@/components/WorkoutDetail'
 import BJJDetail from '@/components/BJJDetail'
 import Achievements from '@/components/Achievements'
 import ActivityHeatmap from '@/components/ActivityHeatmap'
-import CountUp from '@/components/ui/CountUp'
 import CardioDetail from '@/components/CardioDetail'
 import AIInsights from '@/components/AIInsights'
 import BackgroundLogo from '@/components/BackgroundLogo'
@@ -60,12 +57,6 @@ type ProgressionData = {
   }>
 }
 
-type VolumeData = {
-  date: string
-  upperVolume: number
-  lowerVolume: number
-  totalSets: number
-}
 
 type ExerciseProgress = {
   exerciseId: string
@@ -140,7 +131,6 @@ function HistoryClient() {
   const [bjj, setBjj] = useState<BJJ[]>([])
   const [cardio, setCardio] = useState<Cardio[]>([])
   const [progressionData, setProgressionData] = useState<ProgressionData[]>([])
-  const [volumeData, setVolumeData] = useState<VolumeData[]>([])
   const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgress[]>([])
   const [streakData, setStreakData] = useState<StreakData | null>(null)
   const [activeProgramExercises, setActiveProgramExercises] = useState<Set<string>>(new Set())
@@ -366,7 +356,6 @@ function HistoryClient() {
     setCardio((cardioData || []) as Cardio[])
 
     await loadProgressionData(userId)
-    await loadVolumeData(userId)
     await loadActiveProgramExercises(userId)
     await loadStreakData(userId)
   }, [])
@@ -507,68 +496,6 @@ function HistoryClient() {
     }
   }
 
-  async function loadVolumeData(userId: string) {
-    const { data: workoutData } = await supabase
-      .from('workouts')
-      .select(`
-        id,
-        performed_at,
-        title,
-        workout_exercises!inner(
-          display_name,
-          sets(weight, reps, set_type)
-        )
-      `)
-      .eq('user_id', userId)
-      .gte('performed_at', new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString())
-      .order('performed_at', { ascending: true })
-
-    if (workoutData) {
-      const volumeByDate = new Map<string, { upperVolume: number; lowerVolume: number; totalSets: number }>()
-
-      workoutData.forEach((workout: any) => {
-        const date = new Date(workout.performed_at).toISOString().split('T')[0]
-        const title = workout.title?.toLowerCase() || ''
-
-        const isUpper = title.includes('upper') || title.includes('push') || title.includes('pull')
-        const isLower = title.includes('lower') || title.includes('legs') || title.includes('squat') || title.includes('deadlift')
-
-        let totalVolume = 0
-        let totalSets = 0
-
-        workout.workout_exercises.forEach((exercise: any) => {
-          const workingSets = exercise.sets?.filter((s: any) => s.set_type === 'working') || []
-          totalSets += workingSets.length
-          totalVolume += workingSets.reduce((sum: number, s: any) => sum + (s.weight * s.reps), 0)
-        })
-
-        if (!volumeByDate.has(date)) {
-          volumeByDate.set(date, { upperVolume: 0, lowerVolume: 0, totalSets: 0 })
-        }
-
-        const existing = volumeByDate.get(date)!
-        existing.totalSets += totalSets
-
-        if (isUpper) {
-          existing.upperVolume += totalVolume
-        } else if (isLower) {
-          existing.lowerVolume += totalVolume
-        } else {
-          existing.upperVolume += totalVolume / 2
-          existing.lowerVolume += totalVolume / 2
-        }
-      })
-
-      const volumeArray: VolumeData[] = Array.from(volumeByDate.entries()).map(([date, data]) => ({
-        date,
-        upperVolume: Math.round(data.upperVolume),
-        lowerVolume: Math.round(data.lowerVolume),
-        totalSets: data.totalSets
-      }))
-
-      setVolumeData(volumeArray)
-    }
-  }
 
   async function loadActiveProgramExercises(userId: string) {
     // Get active program

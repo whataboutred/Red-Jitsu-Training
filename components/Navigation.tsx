@@ -7,7 +7,6 @@ import { motion, AnimatePresence } from 'framer-motion'
 import {
   Home,
   Dumbbell,
-  History,
   TrendingUp,
   User,
   Plus,
