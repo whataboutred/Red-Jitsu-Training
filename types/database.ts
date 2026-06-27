@@ -11,7 +11,7 @@ export type ExerciseCategory = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'o
 export type BodyPart = 'chest' | 'back' | 'shoulders' | 'arms' | 'legs' | 'core' | 'full_body'
 export type SetType = 'warmup' | 'working'
 export type DistanceUnit = 'miles' | 'km'
-export type CardioIntensity = 'low' | 'moderate' | 'high'
+export type CardioIntensity = 'low' | 'medium' | 'high'
 export type BjjKind = 'class' | 'drilling' | 'open_mat'
 // schema.sql declares ('light','moderate','intense') but the app reads and
 // writes 'low'|'medium'|'high', so the live DB no longer has that check.
