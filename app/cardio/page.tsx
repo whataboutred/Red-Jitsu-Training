@@ -788,35 +788,32 @@ export default function CardioPage() {
         </AnimatePresence>
       </div>
 
-      {/* Sticky Save Button */}
-      <AnimatePresence>
-        {canSave && (
-          <motion.div
-            initial={{ y: 100, opacity: 0 }}
-            animate={{ y: 0, opacity: 1 }}
-            exit={{ y: 100, opacity: 0 }}
-            className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-brand-dark via-brand-dark/95 to-transparent p-4 pb-20"
+      {/* Sticky Save Button — always present, like BJJ */}
+      <motion.div
+        initial={{ y: 100, opacity: 0 }}
+        animate={{ y: 0, opacity: 1 }}
+        className="fixed bottom-0 left-0 right-0 z-50 bg-gradient-to-t from-brand-dark via-brand-dark/95 to-transparent p-4 pb-20"
+      >
+        <div className="max-w-lg mx-auto flex gap-2">
+          <Button
+            fullWidth
+            size="lg"
+            loading={saving}
+            disabled={!canSave}
+            onClick={handleSave}
+            className="bg-[linear-gradient(to_right,#ef4444_0%,#10b981_38%,#059669_100%)] shadow-lg shadow-emerald-500/30"
           >
-            <div className="max-w-lg mx-auto flex gap-2">
-              <Button
-                fullWidth
-                size="lg"
-                loading={saving}
-                onClick={handleSave}
-                className="bg-gradient-to-r from-red-500 to-emerald-500 hover:from-red-600 hover:to-emerald-600 shadow-lg shadow-emerald-500/30"
-              >
-                Save {session.activity}
-                {session.duration_minutes ? ` (${session.duration_minutes} min)` : ''}
-              </Button>
-              <IconButton
-                icon={<X className="w-5 h-5" />}
-                variant="default"
-                onClick={() => router.push('/dashboard')}
-              />
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
+            {canSave
+              ? `Save ${session.activity}${session.duration_minutes ? ` (${session.duration_minutes} min)` : ''}`
+              : 'Select an Activity'}
+          </Button>
+          <IconButton
+            icon={<X className="w-5 h-5" />}
+            variant="default"
+            onClick={() => router.push('/dashboard')}
+          />
+        </div>
+      </motion.div>
 
       {/* Activity Selection Sheet */}
       <BottomSheet
