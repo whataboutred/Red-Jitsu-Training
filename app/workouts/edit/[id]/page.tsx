@@ -797,7 +797,7 @@ export default function EditWorkoutPage() {
       const loadedExercises: WorkoutExercise[] = workoutExercises.map(we => {
         const lastSets = lastWorkoutMap.get(we.exercise_id)
         return {
-          id: Math.random().toString(36).substring(7),
+          id: crypto.randomUUID(),
           exerciseId: we.exercise_id || we.id,
           name: we.display_name,
           sets: (we.sets as any[])
@@ -841,7 +841,7 @@ export default function EditWorkoutPage() {
     // Restore exercises
     if (draft.items && draft.items.length > 0) {
       const restoredExercises: WorkoutExercise[] = draft.items.map((item: any) => ({
-        id: item.id || Math.random().toString(36).substring(7),
+        id: item.id || crypto.randomUUID(),
         exerciseId: item.exerciseId,
         name: item.name,
         sets: item.sets.map((s: any) => ({
@@ -903,7 +903,7 @@ export default function EditWorkoutPage() {
     }
 
     const newExercise: WorkoutExercise = {
-      id: Math.random().toString(36).substring(7),
+      id: crypto.randomUUID(),
       exerciseId: ex.id,
       name: ex.name,
       sets: [{ weight: 0, reps: 0, isWarmup: false, isCompleted: false }],

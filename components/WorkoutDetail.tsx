@@ -63,6 +63,7 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
         .from('workout_exercises')
         .select('id, exercise_id, display_name, order_index')
         .eq('workout_id', workoutId)
+        .order('order_index', { nullsFirst: true })
 
       if (exerciseData && exerciseData.length > 0) {
         // Build exercise name map

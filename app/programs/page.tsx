@@ -610,7 +610,7 @@ export default function ProgramsPage() {
           newDayIds.push(insDay.id)
           for (let j = 0; j < day.items.length; j++) {
             const item = day.items[j]
-            await supabase.from('template_exercises').insert({
+            const { error: texError } = await supabase.from('template_exercises').insert({
               program_day_id: insDay.id,
               exercise_id: item.exercise_id,
               display_name: item.display_name,
@@ -619,6 +619,12 @@ export default function ProgramsPage() {
               set_type: 'working',
               order_index: j
             })
+            if (texError) {
+              // Roll back everything we just created and abort BEFORE deleting old data
+              await supabase.from('template_exercises').delete().in('program_day_id', newDayIds)
+              await supabase.from('program_days').delete().in('id', newDayIds)
+              throw new Error('Failed to save program exercises')
+            }
           }
         }
 
@@ -631,35 +637,48 @@ export default function ProgramsPage() {
         }
       } else {
         // Create new program
-        const { data: prog } = await supabase.from('programs').insert({
+        const { data: prog, error: progError } = await supabase.from('programs').insert({
           user_id: userId,
           name: pName,
           is_active: programs.length === 0
         }).select('id').single()
 
-        if (prog) {
-          for (let i = 0; i < validDays.length; i++) {
-            const day = validDays[i]
-            const { data: insDay } = await supabase.from('program_days').insert({
-              program_id: prog.id,
-              name: day.name || `Day ${i + 1}`,
-              dows: day.dows,
-              order_index: i
-            }).select('id').single()
+        if (progError || !prog) throw new Error('Failed to create program')
 
-            if (insDay) {
-              for (let j = 0; j < day.items.length; j++) {
-                const item = day.items[j]
-                await supabase.from('template_exercises').insert({
-                  program_day_id: insDay.id,
-                  exercise_id: item.exercise_id,
-                  display_name: item.display_name,
-                  default_sets: item.default_sets,
-                  default_reps: item.default_reps,
-                  set_type: 'working',
-                  order_index: j
-                })
-              }
+        const createdDayIds: string[] = []
+        for (let i = 0; i < validDays.length; i++) {
+          const day = validDays[i]
+          const { data: insDay, error: dayError } = await supabase.from('program_days').insert({
+            program_id: prog.id,
+            name: day.name || `Day ${i + 1}`,
+            dows: day.dows,
+            order_index: i
+          }).select('id').single()
+
+          if (dayError || !insDay) {
+            await supabase.from('template_exercises').delete().in('program_day_id', createdDayIds)
+            await supabase.from('program_days').delete().in('id', createdDayIds)
+            await supabase.from('programs').delete().eq('id', prog.id)
+            throw new Error('Failed to save program days')
+          }
+          createdDayIds.push(insDay.id)
+
+          for (let j = 0; j < day.items.length; j++) {
+            const item = day.items[j]
+            const { error: texError } = await supabase.from('template_exercises').insert({
+              program_day_id: insDay.id,
+              exercise_id: item.exercise_id,
+              display_name: item.display_name,
+              default_sets: item.default_sets,
+              default_reps: item.default_reps,
+              set_type: 'working',
+              order_index: j
+            })
+            if (texError) {
+              await supabase.from('template_exercises').delete().in('program_day_id', createdDayIds)
+              await supabase.from('program_days').delete().in('id', createdDayIds)
+              await supabase.from('programs').delete().eq('id', prog.id)
+              throw new Error('Failed to save program exercises')
             }
           }
         }
