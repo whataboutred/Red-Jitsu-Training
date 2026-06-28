@@ -1068,9 +1068,9 @@ function HistoryClient() {
                 <button
                   key={filter}
                   onClick={() => setActivityFilter(filter)}
-                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all ${activityFilter === filter
-                    ? 'bg-red-500/20 text-red-400 border border-red-500/30'
-                    : 'bg-surface text-zinc-500 hover:text-white'
+                  className={`px-4 py-2 rounded-full text-sm font-medium transition-all border ${activityFilter === filter
+                    ? `${getActivityColor(filter === 'all' ? 'strength' : filter).bg} ${getActivityColor(filter === 'all' ? 'strength' : filter).text} ${getActivityColor(filter === 'all' ? 'strength' : filter).border}`
+                    : 'bg-surface border-transparent text-zinc-500 hover:text-white'
                     }`}
                 >
                   {filter === 'all' && 'All'}
