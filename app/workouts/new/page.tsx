@@ -998,7 +998,7 @@ export default function NewWorkoutPage() {
     }
 
     const newExercise: WorkoutExercise = {
-      id: Math.random().toString(36).substring(7),
+      id: crypto.randomUUID(),
       exerciseId: ex.id,
       name: ex.name,
       sets: [{ weight: 0, reps: 0, isWarmup: false, isCompleted: false }],
@@ -1123,11 +1123,13 @@ export default function NewWorkoutPage() {
         throw new Error(error?.message || 'Failed to create workout')
       }
 
-      // Add exercises and sets (skip exercises with no sets)
-      for (const ex of validExercises) {
+      // Add exercises and sets (skip exercises with no sets).
+      // Persist order_index so the drag-reorder order survives reload/edit.
+      for (let exIdx = 0; exIdx < validExercises.length; exIdx++) {
+        const ex = validExercises[exIdx]
         const { data: wex, error: wexError } = await supabase
           .from('workout_exercises')
-          .insert({ workout_id: w.id, exercise_id: ex.exerciseId, display_name: ex.name })
+          .insert({ workout_id: w.id, exercise_id: ex.exerciseId, display_name: ex.name, order_index: exIdx })
           .select('id')
           .single()
 
