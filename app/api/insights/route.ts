@@ -161,6 +161,21 @@ export async function POST(req: NextRequest) {
       })
     }
 
+    // Tamper-proof daily cap: only consumed for a real generation (cached and
+    // no-data responses returned above). Enforced in a SECURITY DEFINER function
+    // against an RLS-locked table, so the user cannot reset their own counter.
+    const { data: allowed, error: claimError } = await supabase.rpc('claim_ai_generation', { p_limit: 20 })
+    if (claimError) {
+      console.error('claim_ai_generation failed:', claimError.message)
+      return NextResponse.json({ error: 'Failed to generate insights. Please try again later.' }, { status: 500 })
+    }
+    if (!allowed) {
+      return NextResponse.json(
+        { error: "You've reached today's insight limit. Try again tomorrow." },
+        { status: 429 }
+      )
+    }
+
     // Call Claude Haiku with timeout
     const anthropic = new Anthropic({ apiKey })
 
