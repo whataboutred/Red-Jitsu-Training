@@ -1,7 +1,7 @@
 // Pure mapping helpers: Google Health "exercise" dataPoint -> cardio_sessions row.
-// No I/O so it's trivially testable. Schema per the Google Health API v4 docs.
+// Field paths verified against real Fitbit-via-Google-Health data.
 
-// A Duration in REST JSON is a string like "1800s" (may be fractional). We also
+// A Duration in REST JSON is a string like "2775s" (may be fractional). We also
 // tolerate a number (seconds) or { seconds } object defensively.
 function durationSeconds(v: unknown): number {
   if (v == null) return 0
@@ -11,37 +11,39 @@ function durationSeconds(v: unknown): number {
   return 0
 }
 
+type HeartRateZoneDurations = {
+  lightTime?: unknown
+  moderateTime?: unknown
+  vigorousTime?: unknown
+  peakTime?: unknown
+}
+
 export type GoogleExercise = {
   interval?: { startTime?: string; endTime?: string }
   exerciseType?: string
   displayName?: string
+  activeDuration?: unknown // Duration, at the exercise level
   metricsSummary?: {
     caloriesKcal?: number
     distanceMillimeters?: number
-    activeDuration?: unknown // Duration
-  }
-  heartRateZoneDurations?: {
-    lightTime?: unknown
-    moderateTime?: unknown
-    vigorousTime?: unknown
-    peakTime?: unknown
+    averageHeartRateBeatsPerMinute?: string | number
+    activeDuration?: unknown // sometimes here too — checked as a fallback
+    heartRateZoneDurations?: HeartRateZoneDurations
   }
 }
 
-// A dataPoint may carry the exercise under an `exercise` key (the filter uses
-// `exercise.interval...`) with an id alongside it.
 export type GoogleExerciseDataPoint = {
-  dataPointId?: string
   name?: string
+  dataPointId?: string
   exercise?: GoogleExercise
 } & Partial<GoogleExercise>
 
 export type Intensity = 'low' | 'medium' | 'high'
 
-// Google already reports time in light / moderate / vigorous / peak. Collapse to
-// our three levels (light=low, moderate=medium, vigorous+peak=high) and pick the
-// dominant bucket; ties round up. No zone data -> medium.
-export function deriveIntensity(zones: GoogleExercise['heartRateZoneDurations']): Intensity {
+// Google reports time in light / moderate / vigorous / peak zones. Collapse to
+// our three levels (light=low, moderate=medium, vigorous+peak=high), dominant
+// bucket wins; ties round up. No zone data -> medium.
+export function deriveIntensity(zones: HeartRateZoneDurations | undefined): Intensity {
   if (!zones) return 'medium'
   const low = durationSeconds(zones.lightTime)
   const medium = durationSeconds(zones.moderateTime)
@@ -52,9 +54,19 @@ export function deriveIntensity(zones: GoogleExercise['heartRateZoneDurations'])
   return 'low'
 }
 
+function exerciseMinutes(ex: GoogleExercise): number {
+  let secs = durationSeconds(ex.activeDuration ?? ex.metricsSummary?.activeDuration)
+  if (secs < 1 && ex.interval?.startTime && ex.interval?.endTime) {
+    secs = (new Date(ex.interval.endTime).getTime() - new Date(ex.interval.startTime).getTime()) / 1000
+  }
+  return Math.round(secs / 60)
+}
+
 function buildNote(ex: GoogleExercise, intensity: Intensity): string {
   const parts: string[] = ['Imported from Fitbit']
-  const z = ex.heartRateZoneDurations
+  const avg = Number(ex.metricsSummary?.averageHeartRateBeatsPerMinute)
+  if (avg > 0) parts.push(`avg HR ${Math.round(avg)}`)
+  const z = ex.metricsSummary?.heartRateZoneDurations
   if (z) {
     const vigorous = Math.round((durationSeconds(z.vigorousTime) + durationSeconds(z.peakTime)) / 60)
     const moderate = Math.round(durationSeconds(z.moderateTime) / 60)
@@ -69,10 +81,7 @@ function buildNote(ex: GoogleExercise, intensity: Intensity): string {
 function prettyType(ex: GoogleExercise): string {
   if (ex.displayName) return ex.displayName
   if (ex.exerciseType) {
-    return ex.exerciseType
-      .toLowerCase()
-      .replace(/_/g, ' ')
-      .replace(/\b\w/g, (c) => c.toUpperCase())
+    return ex.exerciseType.toLowerCase().replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
   }
   return 'Workout'
 }
@@ -111,17 +120,16 @@ export function mapExerciseToCardio(
   if (!start) return null
   if (!matchesAllowed(ex, allowed)) return null
 
-  const minutes = Math.round(durationSeconds(ex.metricsSummary?.activeDuration) / 60)
+  const minutes = exerciseMinutes(ex)
   if (minutes < 1) return null
 
   const mm = ex.metricsSummary?.distanceMillimeters
   const miles = typeof mm === 'number' && mm > 0 ? Number((mm / 1_609_344).toFixed(2)) : null
 
   const cal = ex.metricsSummary?.caloriesKcal
-  const intensity = deriveIntensity(ex.heartRateZoneDurations)
+  const intensity = deriveIntensity(ex.metricsSummary?.heartRateZoneDurations)
 
-  // Stable id for idempotent dedupe.
-  const externalId = dp.dataPointId || dp.name || `${start}|${ex.exerciseType ?? ex.displayName ?? 'ex'}`
+  const externalId = dp.name || dp.dataPointId || `${start}|${ex.exerciseType ?? ex.displayName ?? 'ex'}`
 
   return {
     external_id: String(externalId),
