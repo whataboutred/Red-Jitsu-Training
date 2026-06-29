@@ -7,6 +7,7 @@ import {
   User,
   Target,
   ShieldCheck,
+  Watch,
   ChevronRight,
   LogOut,
   LogIn,
@@ -22,6 +23,7 @@ import BackgroundLogo from '@/components/BackgroundLogo'
 const NAV_ITEMS = [
   { href: '/settings/account', label: 'Account', sub: 'Name, email & password', icon: User },
   { href: '/settings/goals', label: 'Goals', sub: 'Weekly targets & coach context', icon: Target },
+  { href: '/settings/connections', label: 'Connections', sub: 'Auto-import Fitbit cardio', icon: Watch },
   { href: '/settings/privacy', label: 'Privacy & Data', sub: 'Export or delete your data', icon: ShieldCheck },
 ]
 
