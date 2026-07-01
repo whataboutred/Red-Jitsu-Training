@@ -1,97 +1,54 @@
 'use client'
 
 import localforage from 'localforage'
-import { supabase } from './supabaseClient'
+import { saveWorkout, type WorkoutSavePayload } from '@/lib/api/workouts'
 
-localforage.config({ name: 'ironlog' })
+localforage.config({ name: 'redjitsu' })
 
-export type PendingWorkout = {
-  tempId: string
-  performed_at: string
-  title?: string | null
-  note?: string | null
-  exercises: Array<{
-    exercise_id: string
-    name: string
-    sets: Array<{ weight: number; reps: number; set_type: 'warmup' | 'working' }>
-  }>
+/**
+ * Offline workout queue. Items are full save_workout payloads whose client_id
+ * makes replays idempotent: if a save reached the server but the response was
+ * lost, retrying returns the existing workout instead of duplicating it. An
+ * item either syncs completely (the RPC is transactional) or stays queued.
+ */
+export type PendingWorkout = WorkoutSavePayload & {
+  client_id: string
+  queued_at: string
 }
 
-export const pendingKey = 'pending_workouts'
+export const pendingKey = 'pending_workouts_v2'
 
-export async function savePendingWorkout(w: PendingWorkout) {
+export async function enqueueWorkout(payload: PendingWorkout): Promise<void> {
   const items = (await localforage.getItem<PendingWorkout[]>(pendingKey)) || []
-  items.push(w)
-  await localforage.setItem(pendingKey, items)
+  // Re-queuing the same save (same client_id) replaces the older copy
+  const rest = items.filter((i) => i.client_id !== payload.client_id)
+  rest.push(payload)
+  await localforage.setItem(pendingKey, rest)
 }
 
-export async function getPendingWorkouts() {
+export async function getPendingWorkouts(): Promise<PendingWorkout[]> {
   return (await localforage.getItem<PendingWorkout[]>(pendingKey)) || []
 }
 
-export async function clearPendingWorkouts() {
-  await localforage.setItem(pendingKey, [])
-}
-
-export async function trySyncPending(userId: string): Promise<{ synced: number; failed: number }> {
+export async function trySyncPending(): Promise<{ synced: number; failed: number }> {
   const items = await getPendingWorkouts()
   if (!items.length) return { synced: 0, failed: 0 }
 
-  const failedItems: PendingWorkout[] = []
+  const remaining: PendingWorkout[] = []
   let synced = 0
 
-  for (const w of items) {
+  for (const item of items) {
     try {
-      const { data: workout, error } = await supabase
-        .from('workouts')
-        .insert({
-          user_id: userId,
-          performed_at: w.performed_at,
-          title: w.title ?? null,
-          note: w.note ?? null,
-        })
-        .select('id')
-        .single()
-
-      if (error || !workout) {
-        failedItems.push(w)
-        continue
-      }
-
-      let exerciseFailed = false
-      for (const ex of w.exercises) {
-        const { data: wex, error: wexErr } = await supabase
-          .from('workout_exercises')
-          .insert({ workout_id: workout.id, exercise_id: ex.exercise_id, display_name: ex.name })
-          .select('id')
-          .single()
-        if (wexErr || !wex) {
-          exerciseFailed = true
-          continue
-        }
-
-        const rows = ex.sets.map((s, idx) => ({
-          workout_exercise_id: wex.id,
-          set_index: idx + 1,
-          weight: s.weight,
-          reps: s.reps,
-          set_type: s.set_type,
-        }))
-        await supabase.from('sets').insert(rows)
-      }
-
-      if (exerciseFailed) {
-        // Workout record was created but some exercises failed.
-        // Can't re-queue (would create duplicate workout), so count as partial sync.
-        // The user will see "⚠️ No data" on the incomplete exercises in history.
-      }
-      synced++  // Workout was created — even if partial, don't re-queue
+      await saveWorkout(item)
+      synced++
     } catch {
-      failedItems.push(w)
+      // Keep the whole item for the next attempt — the transactional RPC
+      // guarantees nothing partial was written, and client_id makes the
+      // retry duplicate-safe.
+      remaining.push(item)
     }
   }
 
-  // Keep failed items for retry on next sync, clear only successful ones
-  await localforage.setItem(pendingKey, failedItems)
-  return { synced, failed: failedItems.length }
+  await localforage.setItem(pendingKey, remaining)
+  return { synced, failed: remaining.length }
 }

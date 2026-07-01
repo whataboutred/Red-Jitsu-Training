@@ -1,6 +1,6 @@
 /* public/sw.js */
 // Bump this to force clients to fetch the latest assets
-const CACHE = 'rjt-v27';
+const CACHE = 'rjt-v28';
 
 self.addEventListener('install', (event) => {
   // Take control immediately
@@ -49,6 +49,10 @@ self.addEventListener('fetch', (event) => {
   const url = new URL(req.url);
   const accept = req.headers.get('accept') || '';
   if (req.method !== 'GET') return;
+
+  // Never intercept cross-origin requests (Supabase API calls, etc.) —
+  // cache-first on those serves stale data after every write
+  if (url.origin !== self.location.origin) return;
 
   // Let the browser handle Next's hashed assets completely (safer, no staleness)
   if (url.pathname.startsWith('/_next/')) return;

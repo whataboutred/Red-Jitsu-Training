@@ -32,13 +32,13 @@ import {
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
 import { useToast } from '@/components/Toast'
-import { savePendingWorkout, trySyncPending } from '@/lib/offline'
+import { enqueueWorkout, trySyncPending, type PendingWorkout } from '@/lib/offline'
+import { saveWorkout as saveWorkoutApi } from '@/lib/api/workouts'
 import { toDatetimeLocal, datetimeLocalToISO } from '@/lib/dateUtils'
 import { useDraftAutoSave, getTimeAgo } from '@/hooks/useDraftAutoSave'
 import { hapticTap, hapticSuccess } from '@/lib/haptics'
 import { detectAndSaveNewPRs, type NewPR } from '@/lib/api/personalRecords'
 import PRCelebration from '@/components/PRCelebration'
-import { notifyDataChanged } from '@/lib/dataSync'
 import { getLastWorkoutSetsForExercises, WorkoutSet as LastWorkoutSet } from '@/lib/workoutSuggestions'
 import { searchByName } from '@/lib/exerciseSearch'
 import { Button, IconButton } from '@/components/ui/Button'
@@ -229,11 +229,13 @@ function SetRow({
           <button
             onClick={() => setShowActions(!showActions)}
             className="p-2 text-zinc-500 hover:text-zinc-300 transition-colors"
+            aria-label="Set options"
           >
             <MoreHorizontal className="w-4 h-4" />
           </button>
           <button
             onClick={onComplete}
+            aria-label={set.isCompleted ? 'Mark set incomplete' : 'Mark set complete'}
             className={`
               w-10 h-10 rounded-xl flex items-center justify-center
               transition-all duration-200 active:scale-95
@@ -870,7 +872,7 @@ export default function NewWorkoutPage() {
             setExercises(repeatedExercises)
             setTitle(parsed.title || '')
             if (repeatedExercises.length > 0) setExpandedId(repeatedExercises[0].id)
-            toast.success('Workout loaded — adjust weights as needed!')
+            toast.success('Workout loaded — adjust weights as needed')
           }
         } catch { /* ignore parse errors */ }
       }
@@ -909,7 +911,7 @@ export default function NewWorkoutPage() {
         // Location column might not exist
       }
 
-      await trySyncPending(userId)
+      await trySyncPending()
       setLoading(false)
     })()
   }, [])
@@ -1019,6 +1021,11 @@ export default function NewWorkoutPage() {
     setSaving(true)
 
     try {
+      if (await isDemoVisitor()) {
+        toast.warning('Sign in to save workouts')
+        return
+      }
+
       const userId = await getActiveUserId()
       if (!userId) throw new Error('Not logged in')
 
@@ -1051,100 +1058,50 @@ export default function NewWorkoutPage() {
 
       const iso = performedAt ? datetimeLocalToISO(performedAt) : new Date().toISOString()
 
-      // Create workout
-      const insertData: any = {
-        user_id: userId,
+      // One atomic payload: the save_workout RPC writes the workout, its
+      // exercises, and all sets in a single transaction. client_id makes
+      // retries (and the offline queue) idempotent.
+      const payload: PendingWorkout = {
+        client_id: crypto.randomUUID(),
+        queued_at: new Date().toISOString(),
         performed_at: iso,
         title: title || null,
         note: notes || null,
-      }
-      if (location) insertData.location = location
-
-      const { data: w, error } = await supabase
-        .from('workouts')
-        .insert(insertData)
-        .select('id')
-        .single()
-
-      if (error || !w) {
-        console.error('[saveWorkout] Failed to create workout:', error)
-        throw new Error(error?.message || 'Failed to create workout')
-      }
-
-      // Add exercises and sets (skip exercises with no sets).
-      // Persist order_index so the drag-reorder order survives reload/edit.
-      for (let exIdx = 0; exIdx < validExercises.length; exIdx++) {
-        const ex = validExercises[exIdx]
-        const { data: wex, error: wexError } = await supabase
-          .from('workout_exercises')
-          .insert({ workout_id: w.id, exercise_id: ex.exerciseId, display_name: ex.name, order_index: exIdx })
-          .select('id')
-          .single()
-
-        if (wexError || !wex) {
-          console.error('[saveWorkout] Failed to add exercise:', ex.name, wexError)
-          throw new Error(`Failed to add ${ex.name}: ${wexError?.message || 'Unknown error'}`)
-        }
-
-        // Save ALL sets to preserve the workout template structure
-        // This ensures incomplete workouts show correct X/Y sets (e.g., 1/3 not 1/1)
-        const setsToSave = ex.sets
-
-        if (setsToSave.length > 0) {
-          // Try with completed field first, fall back without it if column doesn't exist
-          const rowsWithCompleted = setsToSave.map((s, idx) => ({
-            workout_exercise_id: wex.id,
-            set_index: idx + 1,
+        location: location || null,
+        exercises: validExercises.map((ex) => ({
+          exercise_id: ex.exerciseId,
+          display_name: ex.name,
+          sets: ex.sets.map((s) => ({
             weight: s.weight,
             reps: s.reps,
             set_type: s.isWarmup ? ('warmup' as const) : ('working' as const),
             completed: s.isCompleted,
-          }))
-
-          let { error: setsError } = await supabase.from('sets').insert(rowsWithCompleted)
-
-          // If the 'completed' column doesn't exist, retry without it
-          if (setsError?.message?.includes('completed') && setsError?.message?.includes('schema')) {
-            const rowsWithoutCompleted = setsToSave.map((s, idx) => ({
-              workout_exercise_id: wex.id,
-              set_index: idx + 1,
-              weight: s.weight,
-              reps: s.reps,
-              set_type: s.isWarmup ? ('warmup' as const) : ('working' as const),
-            }))
-            const result = await supabase.from('sets').insert(rowsWithoutCompleted)
-            setsError = result.error
-          }
-
-          if (setsError) {
-            console.error('[saveWorkout] Failed to save sets:', setsError)
-            throw new Error(`Failed to save sets for ${ex.name}: ${setsError.message || 'Unknown error'}`)
-          }
-
-        }
+          })),
+        })),
       }
 
-      // Verify the data was actually saved by reading it back
-      const { data: verifyWex } = await supabase
-        .from('workout_exercises')
-        .select('id')
-        .eq('workout_id', w.id)
+      let workoutId: string
+      try {
+        workoutId = await saveWorkoutApi(payload)
+      } catch (error: any) {
+        const message = String(error?.message || error)
+        const offline = typeof navigator !== 'undefined' && !navigator.onLine
+        const networkError =
+          offline || error instanceof TypeError || /fetch|network|timeout/i.test(message)
+        if (!networkError) throw error
 
-      const { data: verifySets } = await supabase
-        .from('sets')
-        .select('id')
-        .in('workout_exercise_id', verifyWex?.map(we => we.id) || [])
-
-      if (!verifyWex?.length) {
-        console.error('[saveWorkout] WARNING: No workout_exercises found after save!')
-        toast.error('Warning: Workout saved but exercise data may be missing. Please check history.')
-      } else if (!verifySets?.length) {
-        console.error('[saveWorkout] WARNING: No sets found after save!')
-        toast.error('Warning: Workout saved but set data may be missing. Please check history.')
+        // Couldn't reach the server — keep the workout locally; SyncStatus and
+        // the next visit to this page drain the queue.
+        await enqueueWorkout(payload)
+        clearDraft()
+        hapticSuccess()
+        toast.success('Saved on this phone — will sync when back online')
+        router.push('/history')
+        return
       }
 
       clearDraft()
-      setSavedWorkoutId(w.id)
+      setSavedWorkoutId(workoutId)
       hapticSuccess()
 
       // Detect + save PRs. Only celebrate genuine ones (the detector gates on an
@@ -1153,14 +1110,12 @@ export default function NewWorkoutPage() {
       try {
         prs = await detectAndSaveNewPRs(
           userId,
-          w.id,
+          workoutId,
           exercises.map((ex) => ({ exerciseId: ex.exerciseId, name: ex.name, sets: ex.sets }))
         )
       } catch (e) {
         console.error('PR detection failed:', e)
       }
-      // Notify other pages that workout data changed so they refetch
-      notifyDataChanged()
 
       toast.success('Workout saved')
 
@@ -1168,7 +1123,7 @@ export default function NewWorkoutPage() {
         setNewPRs(prs)
         setShowPRCelebration(true) // a focused PR popup; closing it goes to history
       } else {
-        router.push(w.id ? `/history?highlight=${w.id}` : '/history')
+        router.push(workoutId ? `/history?highlight=${workoutId}` : '/history')
       }
     } catch (error: any) {
       console.error('[saveWorkout] Error:', error)
@@ -1314,7 +1269,7 @@ export default function NewWorkoutPage() {
       >
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <Link href="/dashboard" className="p-2.5 -ml-2 rounded-xl hover:bg-white/5 flex-shrink-0 active:scale-95 transition-all">
+            <Link href="/dashboard" className="p-2.5 -ml-2 rounded-xl hover:bg-white/5 flex-shrink-0 active:scale-95 transition-all" aria-label="Back">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div className="min-w-0">

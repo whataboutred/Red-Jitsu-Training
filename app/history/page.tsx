@@ -377,8 +377,7 @@ function HistoryClient() {
       .eq('user_id', userId)
       .order('performed_at', { ascending: false })
       .limit(PAGE_SIZE)
-    // `source`/`external_id` aren't in the generated DB types yet; cast through unknown.
-    setCardio((cardioData || []) as unknown as Cardio[])
+    setCardio((cardioData || []) as Cardio[])
 
     await loadProgressionData(userId)
     await loadActiveProgramExercises(userId)

@@ -74,8 +74,8 @@ export default function EditCardioPage() {
             activity: data.activity || '',
             duration_minutes: data.duration_minutes || undefined,
             distance: data.distance || undefined,
-            distance_unit: data.distance_unit || 'miles',
-            intensity: data.intensity || 'medium',
+            distance_unit: (data.distance_unit as 'miles' | 'km') || 'miles',
+            intensity: (data.intensity as 'low' | 'medium' | 'high') || 'medium',
             calories: data.calories || undefined,
             notes: data.notes || '',
           })
@@ -352,6 +352,7 @@ export default function EditCardioPage() {
             variant="default"
             className="!rounded-2xl !w-14 !h-14"
             onClick={() => router.push('/history')}
+            label="Cancel"
           />
         </div>
       </motion.div>
