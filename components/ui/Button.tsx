@@ -107,7 +107,7 @@ export const IconButton = forwardRef<HTMLButtonElement, IconButtonProps>(
         ref={ref}
         whileTap={{ scale: 0.95 }}
         className={`
-          inline-flex items-center justify-center rounded-full
+          inline-flex items-center justify-center rounded-xl
           transition-all duration-200 ease-out
           disabled:opacity-50 disabled:cursor-not-allowed
           ${iconSizes[size]}
@@ -153,7 +153,7 @@ export const FAB = forwardRef<HTMLButtonElement, FABProps>(
           shadow-lg shadow-red-500/30
           transition-shadow duration-200
           hover:shadow-xl hover:shadow-red-500/40
-          ${extended ? 'px-6 h-14 rounded-full gap-2' : 'w-14 h-14 rounded-full'}
+          ${extended ? 'px-6 h-14 rounded-2xl gap-2' : 'w-14 h-14 rounded-2xl'}
           ${positionClasses[position]}
           ${className}
         `}

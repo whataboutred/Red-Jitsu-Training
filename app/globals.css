@@ -174,7 +174,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .btn-icon {
   @apply inline-flex items-center justify-center;
-  @apply w-10 h-10 rounded-full;
+  @apply w-10 h-10 rounded-xl;
   @apply bg-surface-elevated text-zinc-300 hover:text-white hover:bg-surface-pressed;
   @apply transition-all duration-200 ease-out;
   @apply active:scale-95;
@@ -341,10 +341,6 @@ h1, h2, h3, h4, h5, h6 {
   @apply bg-error/20 text-red-400;
 }
 
-.badge-info {
-  @apply bg-surface-elevated text-zinc-300;
-}
-
 /* ============================================
    SKELETON LOADERS
    ============================================ */
@@ -389,7 +385,7 @@ h1, h2, h3, h4, h5, h6 {
 
 .fab {
   @apply fixed z-50;
-  @apply w-14 h-14 rounded-full;
+  @apply w-14 h-14 rounded-2xl;
   @apply bg-brand-red text-white;
   @apply flex items-center justify-center;
   @apply shadow-lg shadow-red-500/30;

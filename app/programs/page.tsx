@@ -652,7 +652,7 @@ export default function ProgramsPage() {
       }
 
       notifyDataChanged()
-      toast.success('Program saved successfully!')
+      toast.success('Program saved')
       await reloadPrograms()
       backToList()
     } catch (error) {

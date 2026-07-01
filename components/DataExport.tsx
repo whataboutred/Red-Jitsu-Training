@@ -174,7 +174,7 @@ export default function DataExport() {
       const { workouts, bjjSessions, cardioSessions } = await fetchAllData()
 
       if (workouts.length === 0 && bjjSessions.length === 0 && cardioSessions.length === 0) {
-        toast.warning('No data to export yet. Log some workouts first!')
+        toast.warning('No data to export yet. Log some workouts first')
         setLoading(null)
         return
       }
@@ -196,7 +196,7 @@ export default function DataExport() {
         triggerDownload(blob, `red-jitsu-export-${new Date().toISOString().slice(0, 10)}.json`)
       }
 
-      toast.success(`Data exported as ${format.toUpperCase()} successfully!`)
+      toast.success(`Data exported as ${format.toUpperCase()}`)
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Failed to export data')
     } finally {

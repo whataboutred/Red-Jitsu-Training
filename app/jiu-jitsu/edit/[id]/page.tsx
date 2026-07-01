@@ -309,6 +309,7 @@ export default function EditJiuJitsuPage() {
             variant="default"
             className="!rounded-2xl !w-14 !h-14"
             onClick={() => router.push('/history')}
+            label="Cancel"
           />
         </div>
       </motion.div>

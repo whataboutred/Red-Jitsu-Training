@@ -58,7 +58,7 @@ export default function AccountPage() {
     setSaving(true)
     try {
       await upsertProfile(userId, { display_name: displayName.trim() || null, unit })
-      toast.success('Account saved!')
+      toast.success('Account saved')
       setTimeout(() => router.push('/settings'), 400)
     } catch {
       toast.error('Failed to save')
@@ -97,7 +97,7 @@ export default function AccountPage() {
       }
       const { error } = await supabase.auth.updateUser({ password: newPassword })
       if (error) throw error
-      toast.success('Password changed!')
+      toast.success('Password changed')
       setCurrentPassword('')
       setNewPassword('')
       setConfirmPassword('')

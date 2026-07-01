@@ -537,6 +537,7 @@ export default function CardioPage() {
                     <motion.button
                       whileTap={{ scale: 0.95 }}
                       onClick={() => timerRunning ? stopTimerAndSetDuration() : setTimerRunning(true)}
+                      aria-label={timerRunning ? 'Stop timer' : 'Start timer'}
                       className={`w-16 h-16 rounded-full flex items-center justify-center transition-colors ${
                         timerRunning
                           ? 'bg-red-500 hover:bg-red-600'
@@ -784,6 +785,7 @@ export default function CardioPage() {
             variant="default"
             className="!rounded-2xl !w-14 !h-14"
             onClick={() => router.push('/dashboard')}
+            label="Cancel"
           />
         </div>
       </motion.div>
