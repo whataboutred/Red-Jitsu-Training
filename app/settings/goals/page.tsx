@@ -94,7 +94,7 @@ export default function GoalsPage() {
         cardio_weekly_goal: Math.min(14, Math.max(0, cardioWeeklyGoal)),
         coach_context: coachContext.trim() || null,
       })
-      toast.success('Goals saved!')
+      toast.success('Goals saved')
       setTimeout(() => router.push('/settings'), 400)
     } catch {
       toast.error('Failed to save')

@@ -108,7 +108,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
             type="button"
             onClick={decrement}
             className={`
-              ${sizes.button} rounded-full
+              ${sizes.button} rounded-xl
               bg-surface-elevated text-white font-bold text-xl
               flex items-center justify-center
               hover:bg-surface-pressed active:bg-surface-pressed active:scale-95
@@ -116,6 +116,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
               disabled:opacity-30 disabled:cursor-not-allowed
             `}
             disabled={value <= min}
+            aria-label="Decrease"
           >
             -
           </button>
@@ -145,7 +146,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
             type="button"
             onClick={increment}
             className={`
-              ${sizes.button} rounded-full
+              ${sizes.button} rounded-xl
               bg-surface-elevated text-white font-bold text-xl
               flex items-center justify-center
               hover:bg-surface-pressed active:bg-surface-pressed active:scale-95
@@ -153,6 +154,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(
               disabled:opacity-30 disabled:cursor-not-allowed
             `}
             disabled={value >= max}
+            aria-label="Increase"
           >
             +
           </button>

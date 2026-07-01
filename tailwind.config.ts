@@ -47,7 +47,6 @@ export default {
         success: "#059669",
         warning: "#F59E0B",
         error: "#EF4444",
-        info: "#3B82F6",
         // Surface colors (warm-tinted)
         surface: {
           DEFAULT: "#1A1517",

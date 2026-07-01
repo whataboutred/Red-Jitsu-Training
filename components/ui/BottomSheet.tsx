@@ -2,6 +2,7 @@
 
 import { ReactNode, useEffect, useRef, useState, useCallback } from 'react';
 import { motion, AnimatePresence, useDragControls, PanInfo, useAnimation } from 'framer-motion';
+import { X } from 'lucide-react';
 
 interface BottomSheetProps {
   isOpen: boolean;
@@ -304,10 +305,9 @@ export const Modal = ({ isOpen, onClose, children, title, size = 'md' }: ModalPr
                   <button
                     onClick={onClose}
                     className="p-2 text-zinc-400 hover:text-white transition-colors rounded-lg hover:bg-white/5 flex-shrink-0"
+                    aria-label="Close"
                   >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
+                    <X className="w-5 h-5" />
                   </button>
                 </div>
               )}

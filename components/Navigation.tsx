@@ -109,6 +109,7 @@ function DesktopHeader({ signOut }: { signOut: () => Promise<void> }) {
               onClick={signOut}
               className="p-2 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 transition-colors"
               title="Sign out"
+              aria-label="Sign out"
             >
               <LogOut className="w-5 h-5" />
             </button>
@@ -324,7 +325,7 @@ function QuickActionFAB() {
         onClick={() => { hapticTap(); setIsOpen(!isOpen) }}
         className={`
           hidden md:flex fixed bottom-8 right-4 z-50
-          w-14 h-14 rounded-full
+          w-14 h-14 rounded-2xl
           flex items-center justify-center
           shadow-lg transition-all duration-200
           ${isOpen
@@ -333,6 +334,7 @@ function QuickActionFAB() {
           }
         `}
         whileTap={{ scale: 0.95 }}
+        aria-label={isOpen ? 'Close quick actions' : 'Open quick actions'}
       >
         {isOpen ? (
           <X className="w-6 h-6 text-white" />
