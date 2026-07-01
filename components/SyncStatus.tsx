@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from 'react'
 import { AnimatePresence, motion } from 'framer-motion'
 import { CloudOff, RefreshCw, Check } from 'lucide-react'
 import { getPendingWorkouts, trySyncPending } from '@/lib/offline'
-import { getActiveUserId } from '@/lib/activeUser'
 
 type SyncState = 'offline' | 'pending' | 'syncing' | 'synced'
 
@@ -33,13 +32,7 @@ export default function SyncStatus() {
     }
 
     setState('syncing')
-    const userId = await getActiveUserId()
-    if (!userId) {
-      setState('pending')
-      return
-    }
-
-    const { failed } = await trySyncPending(userId)
+    const { failed } = await trySyncPending()
     setPendingCount(failed)
     setState(failed > 0 ? 'pending' : 'synced')
   }, [])

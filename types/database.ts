@@ -1,468 +1,653 @@
 /**
- * Hand-written Supabase database types, derived from supabase/schema.sql and
- * supabase/migrations/*. Keep in sync when the schema changes.
- *
- * Note: programs / program_days / template_exercises exist in the live
- * database but are not yet captured in schema.sql; their shapes are derived
- * from app usage.
+ * Supabase database types, generated from the live schema
+ * (supabase gen types / MCP generate_typescript_types). Regenerate after
+ * applying migrations — do not hand-edit.
  */
 
-export type ExerciseCategory = 'barbell' | 'dumbbell' | 'machine' | 'cable' | 'other'
-export type BodyPart = 'chest' | 'back' | 'shoulders' | 'arms' | 'legs' | 'core' | 'full_body'
-export type SetType = 'warmup' | 'working'
-export type DistanceUnit = 'miles' | 'km'
-export type CardioIntensity = 'low' | 'medium' | 'high'
-export type BjjKind = 'class' | 'drilling' | 'open_mat'
-// schema.sql declares ('light','moderate','intense') but the app reads and
-// writes 'low'|'medium'|'high', so the live DB no longer has that check.
-export type BjjIntensity = string
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
 
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.5"
+  }
   public: {
     Tables: {
-      profiles: {
+      ai_insights: {
         Row: {
+          content: string
+          created_at: string
+          data_signature: string | null
           id: string
-          display_name: string | null
-          unit: string
-          weekly_goal: number | null
-          bjj_weekly_goal: number | null
-          cardio_weekly_goal: number | null
-          coach_context: string | null
-          created_at: string | null
-        }
-        Insert: {
-          id: string
-          display_name?: string | null
-          unit?: string
-          weekly_goal?: number | null
-          bjj_weekly_goal?: number | null
-          cardio_weekly_goal?: number | null
-          coach_context?: string | null
-          created_at?: string | null
-        }
-        Update: {
-          id?: string
-          display_name?: string | null
-          unit?: string
-          weekly_goal?: number | null
-          bjj_weekly_goal?: number | null
-          cardio_weekly_goal?: number | null
-          coach_context?: string | null
-          created_at?: string | null
-        }
-        Relationships: []
-      }
-      exercises: {
-        Row: {
-          id: string
-          name: string
-          category: ExerciseCategory | null
-          body_part: BodyPart | null
-          is_global: boolean
-          owner: string | null
-          created_at: string | null
-        }
-        Insert: {
-          id?: string
-          name: string
-          category?: ExerciseCategory | null
-          body_part?: BodyPart | null
-          is_global?: boolean
-          owner?: string | null
-          created_at?: string | null
-        }
-        Update: {
-          id?: string
-          name?: string
-          category?: ExerciseCategory | null
-          body_part?: BodyPart | null
-          is_global?: boolean
-          owner?: string | null
-          created_at?: string | null
-        }
-        Relationships: []
-      }
-      workouts: {
-        Row: {
-          id: string
+          insight_type: string
           user_id: string
-          performed_at: string
-          title: string | null
-          note: string | null
-          location: string | null
-          created_at: string | null
         }
         Insert: {
+          content: string
+          created_at?: string
+          data_signature?: string | null
           id?: string
+          insight_type?: string
           user_id: string
-          performed_at?: string
-          title?: string | null
-          note?: string | null
-          location?: string | null
-          created_at?: string | null
         }
         Update: {
+          content?: string
+          created_at?: string
+          data_signature?: string | null
           id?: string
+          insight_type?: string
           user_id?: string
-          performed_at?: string
-          title?: string | null
-          note?: string | null
-          location?: string | null
-          created_at?: string | null
         }
         Relationships: []
       }
-      workout_exercises: {
+      ai_usage: {
         Row: {
-          id: string
-          workout_id: string
-          exercise_id: string
-          display_name: string
-          order_index: number | null
-        }
-        Insert: {
-          id?: string
-          workout_id: string
-          exercise_id: string
-          display_name: string
-          order_index?: number | null
-        }
-        Update: {
-          id?: string
-          workout_id?: string
-          exercise_id?: string
-          display_name?: string
-          order_index?: number | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'workout_exercises_workout_id_fkey'
-            columns: ['workout_id']
-            isOneToOne: false
-            referencedRelation: 'workouts'
-            referencedColumns: ['id']
-          },
-          {
-            foreignKeyName: 'workout_exercises_exercise_id_fkey'
-            columns: ['exercise_id']
-            isOneToOne: false
-            referencedRelation: 'exercises'
-            referencedColumns: ['id']
-          },
-        ]
-      }
-      sets: {
-        Row: {
-          id: string
-          workout_exercise_id: string
-          set_index: number
-          weight: number
-          reps: number
-          set_type: SetType
-          completed: boolean
-          created_at: string | null
-        }
-        Insert: {
-          id?: string
-          workout_exercise_id: string
-          set_index?: number
-          weight?: number
-          reps?: number
-          set_type?: SetType
-          completed?: boolean
-          created_at?: string | null
-        }
-        Update: {
-          id?: string
-          workout_exercise_id?: string
-          set_index?: number
-          weight?: number
-          reps?: number
-          set_type?: SetType
-          completed?: boolean
-          created_at?: string | null
-        }
-        Relationships: [
-          {
-            foreignKeyName: 'sets_workout_exercise_id_fkey'
-            columns: ['workout_exercise_id']
-            isOneToOne: false
-            referencedRelation: 'workout_exercises'
-            referencedColumns: ['id']
-          },
-        ]
-      }
-      cardio_sessions: {
-        Row: {
-          id: string
+          count: number
+          day: string
           user_id: string
-          activity: string
-          duration_minutes: number | null
-          distance: number | null
-          distance_unit: DistanceUnit | null
-          intensity: CardioIntensity | null
-          calories: number | null
-          notes: string | null
-          performed_at: string
-          created_at: string | null
         }
         Insert: {
-          id?: string
+          count?: number
+          day?: string
           user_id: string
-          activity: string
-          duration_minutes?: number | null
-          distance?: number | null
-          distance_unit?: DistanceUnit | null
-          intensity?: CardioIntensity | null
-          calories?: number | null
-          notes?: string | null
-          performed_at?: string
-          created_at?: string | null
         }
         Update: {
-          id?: string
+          count?: number
+          day?: string
           user_id?: string
-          activity?: string
-          duration_minutes?: number | null
-          distance?: number | null
-          distance_unit?: DistanceUnit | null
-          intensity?: CardioIntensity | null
-          calories?: number | null
-          notes?: string | null
-          performed_at?: string
-          created_at?: string | null
         }
         Relationships: []
       }
       bjj_sessions: {
         Row: {
-          id: string
-          user_id: string
-          kind: BjjKind
+          created_at: string
           duration_min: number
-          intensity: BjjIntensity | null
+          id: string
+          intensity: string | null
+          kind: string
           notes: string | null
           performed_at: string
-          created_at: string | null
+          user_id: string
         }
         Insert: {
-          id?: string
-          user_id: string
-          kind?: BjjKind
+          created_at?: string
           duration_min: number
-          intensity?: BjjIntensity | null
+          id?: string
+          intensity?: string | null
+          kind: string
           notes?: string | null
           performed_at?: string
-          created_at?: string | null
+          user_id: string
         }
         Update: {
-          id?: string
-          user_id?: string
-          kind?: BjjKind
+          created_at?: string
           duration_min?: number
-          intensity?: BjjIntensity | null
+          id?: string
+          intensity?: string | null
+          kind?: string
           notes?: string | null
           performed_at?: string
-          created_at?: string | null
+          user_id?: string
         }
         Relationships: []
       }
-      ai_insights: {
+      cardio_sessions: {
         Row: {
+          activity: string
+          calories: number | null
+          created_at: string | null
+          distance: number | null
+          distance_unit: string | null
+          duration_minutes: number | null
+          external_id: string | null
           id: string
+          intensity: string | null
+          notes: string | null
+          performed_at: string
+          source: string
           user_id: string
-          insight_type: string
-          content: string
-          created_at: string
         }
         Insert: {
+          activity: string
+          calories?: number | null
+          created_at?: string | null
+          distance?: number | null
+          distance_unit?: string | null
+          duration_minutes?: number | null
+          external_id?: string | null
           id?: string
+          intensity?: string | null
+          notes?: string | null
+          performed_at?: string
+          source?: string
           user_id: string
-          insight_type?: string
-          content: string
-          created_at?: string
         }
         Update: {
+          activity?: string
+          calories?: number | null
+          created_at?: string | null
+          distance?: number | null
+          distance_unit?: string | null
+          duration_minutes?: number | null
+          external_id?: string | null
           id?: string
+          intensity?: string | null
+          notes?: string | null
+          performed_at?: string
+          source?: string
           user_id?: string
-          insight_type?: string
-          content?: string
+        }
+        Relationships: []
+      }
+      exercises: {
+        Row: {
+          body_part: string | null
+          category: string | null
+          created_at: string | null
+          id: string
+          is_global: boolean
+          name: string
+          owner: string | null
+        }
+        Insert: {
+          body_part?: string | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_global?: boolean
+          name: string
+          owner?: string | null
+        }
+        Update: {
+          body_part?: string | null
+          category?: string | null
+          created_at?: string | null
+          id?: string
+          is_global?: boolean
+          name?: string
+          owner?: string | null
+        }
+        Relationships: []
+      }
+      fitbit_connections: {
+        Row: {
+          access_token_enc: string | null
+          allowed_activities: string[]
+          created_at: string
+          expires_at: string | null
+          fitbit_user_id: string | null
+          last_error: string | null
+          last_sync_at: string | null
+          refresh_token_enc: string | null
+          scopes: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          access_token_enc?: string | null
+          allowed_activities?: string[]
           created_at?: string
+          expires_at?: string | null
+          fitbit_user_id?: string | null
+          last_error?: string | null
+          last_sync_at?: string | null
+          refresh_token_enc?: string | null
+          scopes?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          access_token_enc?: string | null
+          allowed_activities?: string[]
+          created_at?: string
+          expires_at?: string | null
+          fitbit_user_id?: string | null
+          last_error?: string | null
+          last_sync_at?: string | null
+          refresh_token_enc?: string | null
+          scopes?: string | null
+          updated_at?: string
+          user_id?: string
         }
         Relationships: []
       }
       personal_records: {
         Row: {
-          id: string
-          user_id: string
-          exercise_id: string
-          weight: number
-          reps: number
-          estimated_1rm: number
           achieved_at: string
           created_at: string | null
+          estimated_1rm: number
+          exercise_id: string
+          id: string
+          reps: number
+          user_id: string
+          weight: number
         }
         Insert: {
-          id?: string
-          user_id: string
-          exercise_id: string
-          weight: number
-          reps: number
-          estimated_1rm: number
           achieved_at: string
           created_at?: string | null
+          estimated_1rm: number
+          exercise_id: string
+          id?: string
+          reps: number
+          user_id: string
+          weight: number
         }
         Update: {
-          id?: string
-          user_id?: string
-          exercise_id?: string
-          weight?: number
-          reps?: number
-          estimated_1rm?: number
           achieved_at?: string
           created_at?: string | null
+          estimated_1rm?: number
+          exercise_id?: string
+          id?: string
+          reps?: number
+          user_id?: string
+          weight?: number
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "personal_records_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+        ]
       }
-      programs: {
+      profiles: {
         Row: {
-          id: string
-          user_id: string
-          name: string
-          is_active: boolean
+          bjj_weekly_goal: number
+          cardio_weekly_goal: number | null
+          coach_context: string | null
           created_at: string | null
+          display_name: string | null
+          id: string
+          unit: string
+          weekly_goal: number
         }
         Insert: {
-          id?: string
-          user_id: string
-          name: string
-          is_active?: boolean
+          bjj_weekly_goal?: number
+          cardio_weekly_goal?: number | null
+          coach_context?: string | null
           created_at?: string | null
+          display_name?: string | null
+          id: string
+          unit?: string
+          weekly_goal?: number
         }
         Update: {
-          id?: string
-          user_id?: string
-          name?: string
-          is_active?: boolean
+          bjj_weekly_goal?: number
+          cardio_weekly_goal?: number | null
+          coach_context?: string | null
           created_at?: string | null
+          display_name?: string | null
+          id?: string
+          unit?: string
+          weekly_goal?: number
         }
         Relationships: []
       }
       program_days: {
         Row: {
+          dows: number[]
           id: string
-          program_id: string
           name: string
-          dows: number[] | null
           order_index: number | null
+          program_id: string
         }
         Insert: {
+          dows?: number[]
           id?: string
-          program_id: string
           name: string
-          dows?: number[] | null
           order_index?: number | null
+          program_id: string
         }
         Update: {
+          dows?: number[]
           id?: string
-          program_id?: string
           name?: string
-          dows?: number[] | null
           order_index?: number | null
+          program_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'program_days_program_id_fkey'
-            columns: ['program_id']
+            foreignKeyName: "program_days_program_id_fkey"
+            columns: ["program_id"]
             isOneToOne: false
-            referencedRelation: 'programs'
-            referencedColumns: ['id']
+            referencedRelation: "programs"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      programs: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_active: boolean
+          name: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      sets: {
+        Row: {
+          completed: boolean | null
+          created_at: string | null
+          id: string
+          reps: number
+          set_index: number
+          set_type: string
+          weight: number
+          workout_exercise_id: string
+        }
+        Insert: {
+          completed?: boolean | null
+          created_at?: string | null
+          id?: string
+          reps?: number
+          set_index?: number
+          set_type?: string
+          weight?: number
+          workout_exercise_id: string
+        }
+        Update: {
+          completed?: boolean | null
+          created_at?: string | null
+          id?: string
+          reps?: number
+          set_index?: number
+          set_type?: string
+          weight?: number
+          workout_exercise_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sets_workout_exercise_id_fkey"
+            columns: ["workout_exercise_id"]
+            isOneToOne: false
+            referencedRelation: "workout_exercises"
+            referencedColumns: ["id"]
           },
         ]
       }
       template_exercises: {
         Row: {
-          id: string
-          program_day_id: string
-          exercise_id: string
+          default_reps: number
+          default_sets: number
           display_name: string
-          default_sets: number | null
-          default_reps: number | null
-          // Written by the program builder but never read back.
-          set_type: string | null
+          exercise_id: string
+          id: string
           order_index: number | null
+          program_day_id: string
+          set_type: string
         }
         Insert: {
-          id?: string
-          program_day_id: string
-          exercise_id: string
+          default_reps?: number
+          default_sets?: number
           display_name: string
-          default_sets?: number | null
-          default_reps?: number | null
-          set_type?: string | null
+          exercise_id: string
+          id?: string
           order_index?: number | null
+          program_day_id: string
+          set_type?: string
         }
         Update: {
-          id?: string
-          program_day_id?: string
-          exercise_id?: string
+          default_reps?: number
+          default_sets?: number
           display_name?: string
-          default_sets?: number | null
-          default_reps?: number | null
-          set_type?: string | null
+          exercise_id?: string
+          id?: string
           order_index?: number | null
+          program_day_id?: string
+          set_type?: string
         }
         Relationships: [
           {
-            foreignKeyName: 'template_exercises_program_day_id_fkey'
-            columns: ['program_day_id']
+            foreignKeyName: "template_exercises_exercise_id_fkey"
+            columns: ["exercise_id"]
             isOneToOne: false
-            referencedRelation: 'program_days'
-            referencedColumns: ['id']
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
           },
           {
-            foreignKeyName: 'template_exercises_exercise_id_fkey'
-            columns: ['exercise_id']
+            foreignKeyName: "template_exercises_program_day_id_fkey"
+            columns: ["program_day_id"]
             isOneToOne: false
-            referencedRelation: 'exercises'
-            referencedColumns: ['id']
+            referencedRelation: "program_days"
+            referencedColumns: ["id"]
           },
         ]
       }
-    }
-    Views: Record<string, never>
-    Functions: {
-      get_history_flat: {
-        Args: Record<string, never>
-        Returns: {
+      workout_exercises: {
+        Row: {
+          display_name: string
+          exercise_id: string
           id: string
+          order_index: number | null
+          workout_id: string
+        }
+        Insert: {
+          display_name: string
+          exercise_id: string
+          id?: string
+          order_index?: number | null
+          workout_id: string
+        }
+        Update: {
+          display_name?: string
+          exercise_id?: string
+          id?: string
+          order_index?: number | null
+          workout_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "workout_exercises_exercise_id_fkey"
+            columns: ["exercise_id"]
+            isOneToOne: false
+            referencedRelation: "exercises"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "workout_exercises_workout_id_fkey"
+            columns: ["workout_id"]
+            isOneToOne: false
+            referencedRelation: "workouts"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      workouts: {
+        Row: {
+          client_id: string | null
+          created_at: string | null
+          id: string
+          location: string | null
+          note: string | null
           performed_at: string
-          name: string
-          weight: number
-          reps: number
-        }[]
-      }
-      get_volume_by_dow: {
-        Args: Record<string, never>
-        Returns: {
-          dow: string
-          volume: number
-        }[]
-      }
-      delete_my_data: {
-        Args: Record<string, never>
-        Returns: undefined
+          title: string | null
+          user_id: string
+        }
+        Insert: {
+          client_id?: string | null
+          created_at?: string | null
+          id?: string
+          location?: string | null
+          note?: string | null
+          performed_at?: string
+          title?: string | null
+          user_id: string
+        }
+        Update: {
+          client_id?: string | null
+          created_at?: string | null
+          id?: string
+          location?: string | null
+          note?: string | null
+          performed_at?: string
+          title?: string | null
+          user_id?: string
+        }
+        Relationships: []
       }
     }
-    Enums: Record<string, never>
-    CompositeTypes: Record<string, never>
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      claim_ai_generation: { Args: { p_limit?: number }; Returns: boolean }
+      delete_my_data: { Args: never; Returns: undefined }
+      reseed_demo: { Args: never; Returns: undefined }
+      reseed_demo_full: { Args: never; Returns: undefined }
+      save_workout: { Args: { p_payload: Json }; Returns: string }
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
   }
 }
 
-export type Tables<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Row']
-export type TablesInsert<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Insert']
-export type TablesUpdate<T extends keyof Database['public']['Tables']> =
-  Database['public']['Tables'][T]['Update']
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+    ? R
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+        Row: infer R
+      }
+      ? R
+      : never
+    : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Insert: infer I
+    }
+    ? I
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Insert: infer I
+      }
+      ? I
+      : never
+    : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+    : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+      Update: infer U
+    }
+    ? U
+    : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+        Update: infer U
+      }
+      ? U
+      : never
+    : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+    : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+    : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+    : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

@@ -34,8 +34,8 @@ import { DEMO, getActiveUserId, isDemoVisitor } from '@/lib/activeUser'
 import { isUuid } from '@/lib/validation'
 import { useToast } from '@/components/Toast'
 import { useDraftAutoSave, getTimeAgo } from '@/hooks/useDraftAutoSave'
+import { saveWorkout as saveWorkoutApi, deleteWorkout } from '@/lib/api/workouts'
 import { hapticTap, hapticSuccess } from '@/lib/haptics'
-import { notifyDataChanged } from '@/lib/dataSync'
 import { getLastWorkoutSetsForExercises, WorkoutSet as LastWorkoutSet } from '@/lib/workoutSuggestions'
 import { searchByName } from '@/lib/exerciseSearch'
 import { Button, IconButton } from '@/components/ui/Button'
@@ -226,11 +226,13 @@ function SetRow({
           <button
             onClick={() => setShowActions(!showActions)}
             className="p-2 text-zinc-500 hover:text-zinc-300 transition-colors"
+            aria-label="Set options"
           >
             <MoreHorizontal className="w-4 h-4" />
           </button>
           <button
             onClick={onComplete}
+            aria-label={set.isCompleted ? 'Mark set incomplete' : 'Mark set complete'}
             className={`
               w-10 h-10 rounded-xl flex items-center justify-center
               transition-all duration-200 active:scale-95
@@ -869,7 +871,7 @@ export default function EditWorkoutPage() {
 
     pendingDraftRef.current = null
     setShowRestoreConfirm(false)
-    toast.success('Draft restored!')
+    toast.success('Draft restored')
   }, [toast])
 
   // Discard draft
@@ -1021,114 +1023,29 @@ export default function EditWorkoutPage() {
         }
       }
 
-      // Update workout
-      const updateData: any = {
+      // Atomic full replace via the save_workout RPC: header, exercises, and
+      // sets all commit or none do — no more delete-then-fail data loss.
+      await saveWorkoutApi({
+        workout_id: workoutId,
         performed_at: datetimeLocalToISO(performedAt),
         title: title || null,
         note: notes || null,
-      }
-      if (location) updateData.location = location
-
-      const { error: workoutError } = await supabase
-        .from('workouts')
-        .update(updateData)
-        .eq('id', workoutId)
-        .eq('user_id', userId)
-
-      if (workoutError) throw new Error(workoutError.message)
-
-      // Get current exercises
-      const { data: currentExercises } = await supabase
-        .from('workout_exercises')
-        .select('id, exercise_id')
-        .eq('workout_id', workoutId)
-
-      // Delete removed exercises
-      if (currentExercises) {
-        const currentIds = exercises.map(e => e.exerciseId)
-        const toDelete = currentExercises.filter(ce => !currentIds.includes(ce.exercise_id))
-
-        for (const del of toDelete) {
-          await supabase.from('sets').delete().eq('workout_exercise_id', del.id)
-          await supabase.from('workout_exercises').delete().eq('id', del.id)
-        }
-      }
-
-      // Update/insert exercises
-      for (let i = 0; i < exercises.length; i++) {
-        const ex = exercises[i]
-
-        let workoutExercise = currentExercises?.find(ce => ce.exercise_id === ex.exerciseId)
-
-        if (workoutExercise) {
-          const { error: updateError } = await supabase
-            .from('workout_exercises')
-            .update({ display_name: ex.name, order_index: i })
-            .eq('id', workoutExercise.id)
-          if (updateError) {
-            console.error('Failed to update exercise:', ex.name, updateError)
-            throw new Error(`Failed to update ${ex.name}: ${updateError.message}`)
-          }
-        } else {
-          const { data: newEx, error: insertError } = await supabase
-            .from('workout_exercises')
-            .insert({
-              workout_id: workoutId,
-              exercise_id: ex.exerciseId,
-              display_name: ex.name,
-              order_index: i,
-            })
-            .select()
-            .single()
-          if (insertError || !newEx) {
-            console.error('Failed to add exercise:', ex.name, insertError)
-            throw new Error(`Failed to add ${ex.name}: ${insertError?.message || 'Unknown error'}`)
-          }
-          workoutExercise = newEx
-        }
-
-        if (workoutExercise?.id) {
-          // Delete old sets
-          await supabase.from('sets').delete().eq('workout_exercise_id', workoutExercise.id)
-
-          // Insert all sets to preserve the workout template structure
-          if (ex.sets.length > 0) {
-            const rowsWithCompleted = ex.sets.map((s, idx) => ({
-              workout_exercise_id: workoutExercise!.id,
-              set_index: idx + 1,
-              weight: s.weight,
-              reps: s.reps,
-              set_type: s.isWarmup ? ('warmup' as const) : ('working' as const),
-              completed: s.isCompleted,
-            }))
-
-            let { error: setsError } = await supabase.from('sets').insert(rowsWithCompleted)
-
-            // If the 'completed' column doesn't exist, retry without it
-            if (setsError?.message?.includes('completed') && setsError?.message?.includes('schema')) {
-              const rowsWithoutCompleted = ex.sets.map((s, idx) => ({
-                workout_exercise_id: workoutExercise!.id,
-                set_index: idx + 1,
-                weight: s.weight,
-                reps: s.reps,
-                set_type: s.isWarmup ? ('warmup' as const) : ('working' as const),
-              }))
-              const result = await supabase.from('sets').insert(rowsWithoutCompleted)
-              setsError = result.error
-            }
-
-            if (setsError) {
-              console.error('Failed to save sets for:', ex.name, setsError)
-              throw new Error(`Failed to save sets for ${ex.name}: ${setsError.message}`)
-            }
-          }
-        }
-      }
+        location: location || null,
+        exercises: exercises.map((ex) => ({
+          exercise_id: ex.exerciseId,
+          display_name: ex.name,
+          sets: ex.sets.map((s) => ({
+            weight: s.weight,
+            reps: s.reps,
+            set_type: s.isWarmup ? ('warmup' as const) : ('working' as const),
+            completed: s.isCompleted,
+          })),
+        })),
+      })
 
       clearDraft()
       hapticSuccess()
-      notifyDataChanged()
-      toast.success('Workout updated!')
+      toast.success('Workout updated')
       router.push('/history')
     } catch (error: any) {
       console.error('Save error:', error)
@@ -1138,34 +1055,18 @@ export default function EditWorkoutPage() {
     }
   }
 
-  // Delete workout
+  // Delete workout — children cascade in the database
   const handleDelete = async () => {
     try {
       const userId = userIdRef.current
       if (!userId) return
 
-      // Get workout exercises
-      const { data: workoutExercises } = await supabase
-        .from('workout_exercises')
-        .select('id')
-        .eq('workout_id', workoutId)
-
-      // Delete sets
-      if (workoutExercises) {
-        for (const we of workoutExercises) {
-          await supabase.from('sets').delete().eq('workout_exercise_id', we.id)
-        }
-      }
-
-      // Delete exercises
-      await supabase.from('workout_exercises').delete().eq('workout_id', workoutId)
-
-      // Delete workout
-      await supabase.from('workouts').delete().eq('id', workoutId).eq('user_id', userId)
+      await deleteWorkout(workoutId, userId)
 
       toast.success('Workout deleted')
       router.push('/history')
     } catch (error: any) {
+      console.error('Delete failed:', error)
       toast.error('Failed to delete workout')
     }
   }
@@ -1194,7 +1095,7 @@ export default function EditWorkoutPage() {
       >
         <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3 min-w-0 flex-1">
-            <Link href="/history" className="p-2.5 -ml-2 rounded-xl hover:bg-white/5 flex-shrink-0 active:scale-95 transition-all">
+            <Link href="/history" className="p-2.5 -ml-2 rounded-xl hover:bg-white/5 flex-shrink-0 active:scale-95 transition-all" aria-label="Back">
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div className="min-w-0">
