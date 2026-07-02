@@ -1281,7 +1281,7 @@ function HistoryClient() {
                             <div className="flex items-center gap-2 min-w-0">
                               <p className="font-medium text-white truncate">{activity.title}</p>
                               {activity.fromFitbit && (
-                                <span className="flex-shrink-0 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 border border-emerald-500/30 px-1.5 py-0.5 text-[10px] font-medium text-emerald-300">
+                                <span className="flex-shrink-0 inline-flex items-center gap-1 rounded-md bg-white/[0.06] border border-white/[0.12] px-1.5 py-0.5 text-[10px] font-medium text-zinc-300">
                                   <Watch className="w-2.5 h-2.5" />
                                   Fitbit
                                 </span>

@@ -47,7 +47,7 @@ import { NumberInput, Input, Textarea, Select } from '@/components/ui/Input'
 import { AnimatedCard } from '@/components/ui/Card'
 import { Skeleton } from '@/components/ui/Skeleton'
 
-type Exercise = { id: string; name: string; category: string }
+type Exercise = { id: string; name: string; category: string; body_part?: string | null }
 type SetData = { weight: number; reps: number; isWarmup: boolean; isCompleted: boolean }
 type WorkoutExercise = {
   id: string
@@ -706,7 +706,9 @@ function ExerciseSelectorSheet({
             </div>
             <div className="min-w-0 flex-1">
               <p className="font-medium text-white truncate">{ex.name}</p>
-              <p className="text-xs text-zinc-500 capitalize">{ex.category}</p>
+              <p className="text-xs text-zinc-500 capitalize">
+                {ex.category}{ex.body_part ? ` · ${ex.body_part}` : ''}
+              </p>
             </div>
             <ChevronDown className="w-4 h-4 text-zinc-600 -rotate-90 flex-shrink-0" />
           </button>
@@ -882,7 +884,7 @@ export default function NewWorkoutPage() {
       if (profile?.unit) setUnit(profile.unit as 'lb' | 'kg')
 
       // Load exercises
-      const { data: ex } = await supabase.from('exercises').select('id,name,category').order('name')
+      const { data: ex } = await supabase.from('exercises').select('id,name,category,body_part').order('name')
       setAllExercises((ex || []) as Exercise[])
 
       // Load programs — must scope to this user. Without the user_id filter the
