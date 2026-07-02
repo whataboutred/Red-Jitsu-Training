@@ -3,9 +3,12 @@
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
-import { Dumbbell, Target, Rocket, ChevronRight, ChevronLeft } from 'lucide-react'
+import { Dumbbell, Target, Rocket, ChevronRight, ChevronLeft, Award } from 'lucide-react'
 import { upsertProfile } from '@/lib/api'
+import { supabase } from '@/lib/supabaseClient'
 import { hapticSuccess } from '@/lib/haptics'
+import { BELT_ORDER, BELTS, beltStyle } from '@/lib/belt'
+import { BeltBar } from '@/components/BeltBar'
 
 /**
  * First-run setup shown when a user has no profile row yet:
@@ -26,6 +29,8 @@ export default function OnboardingWizard({
   const [weeklyGoal, setWeeklyGoal] = useState(4)
   const [bjjGoal, setBjjGoal] = useState(2)
   const [cardioGoal, setCardioGoal] = useState(3)
+  const [belt, setBelt] = useState('white')
+  const [stripes, setStripes] = useState(0)
 
   async function finish(destination: 'workout' | 'dashboard') {
     setSaving(true)
@@ -35,7 +40,11 @@ export default function OnboardingWizard({
         weekly_goal: weeklyGoal,
         bjj_weekly_goal: bjjGoal,
         cardio_weekly_goal: cardioGoal,
+        bjj_belt: belt,
+        bjj_stripes: stripes,
       })
+      // Seed the promotion timeline with their starting rank.
+      await supabase.from('bjj_promotions').insert({ user_id: userId, belt, stripes }).then(() => {}, () => {})
       hapticSuccess()
       onComplete()
       if (destination === 'workout') router.push('/workouts/new')
@@ -124,6 +133,48 @@ export default function OnboardingWizard({
             <GoalStepper label="Strength workouts" value={weeklyGoal} onChange={setWeeklyGoal} accent="text-brand-red" />
             <GoalStepper label="BJJ sessions" value={bjjGoal} onChange={setBjjGoal} accent="text-bjj" />
             <GoalStepper label="Cardio sessions" value={cardioGoal} onChange={setCardioGoal} accent="text-cardio" />
+          </div>
+        </>
+      ),
+    },
+    {
+      icon: <Award className="h-8 w-8" style={{ color: beltStyle(belt).hex }} />,
+      title: 'Your BJJ belt',
+      body: (
+        <>
+          <p className="mb-5 text-sm text-zinc-400">
+            Your belt personalizes the app — it sets your Jiu-Jitsu color and starts your promotion timeline. Not a grappler? Leave it on White.
+          </p>
+          <div className="space-y-2">
+            {BELT_ORDER.map((b) => {
+              const st = BELTS[b]
+              const active = belt === b
+              return (
+                <button
+                  key={b}
+                  onClick={() => setBelt(b)}
+                  className={`flex w-full items-center gap-3 rounded-xl border p-2.5 transition-all ${active ? 'border-white/25 bg-white/[0.04]' : 'border-white/10 hover:border-white/20'}`}
+                >
+                  <BeltBar belt={b} stripes={active ? stripes : 0} className="w-24" />
+                  <span className="text-sm font-medium" style={{ color: st.hex }}>{st.label}</span>
+                </button>
+              )
+            })}
+          </div>
+          <div className="mt-4 flex items-center gap-2">
+            <span className="text-xs uppercase tracking-wide text-zinc-500">Stripes</span>
+            <div className="flex gap-1.5 ml-auto">
+              {[0, 1, 2, 3, 4].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setStripes(s)}
+                  className={`h-8 w-8 rounded-lg text-sm font-semibold transition-all ${stripes === s ? 'text-white' : 'bg-surface-elevated text-zinc-500 hover:text-white'}`}
+                  style={stripes === s ? { backgroundColor: beltStyle(belt).hex } : undefined}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
           </div>
         </>
       ),
