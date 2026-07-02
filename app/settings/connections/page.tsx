@@ -18,6 +18,7 @@ type Status = {
   fitbitUserId?: string | null
   lastSyncAt?: string | null
   excludedActivities?: string[]
+  needsReconnect?: boolean
 }
 
 async function authedFetch(path: string, init?: RequestInit) {
@@ -177,9 +178,15 @@ export default function ConnectionsPage() {
                   </p>
                 </div>
                 {status.connected && (
-                  <span className="flex items-center gap-1 text-xs text-emerald-400">
-                    <Check className="w-3.5 h-3.5" /> Active
-                  </span>
+                  status.needsReconnect ? (
+                    <span className="flex items-center gap-1 text-xs text-amber-400">
+                      <RefreshCw className="w-3.5 h-3.5" /> Paused
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-1 text-xs text-emerald-400">
+                      <Check className="w-3.5 h-3.5" /> Active
+                    </span>
+                  )
                 )}
               </div>
 
@@ -191,11 +198,23 @@ export default function ConnectionsPage() {
 
               {status.connected ? (
                 <div className="space-y-3">
-                  <p className="text-sm text-zinc-400">Last synced {relativeTime(status.lastSyncAt)}</p>
+                  {status.needsReconnect ? (
+                    <div className="rounded-lg bg-amber-500/10 border border-amber-500/30 px-3 py-2.5 text-xs text-amber-200 leading-relaxed">
+                      Auto-sync is paused. On the free tier Fitbit access expires about weekly — reconnect to resume. Your history is safe and the next sync backfills anything missed.
+                    </div>
+                  ) : (
+                    <p className="text-sm text-zinc-400">Last synced {relativeTime(status.lastSyncAt)}</p>
+                  )}
                   <div className="flex gap-2">
-                    <Button onClick={syncNow} loading={syncing} icon={<RefreshCw className="w-4 h-4" />} className="flex-1">
-                      Sync now
-                    </Button>
+                    {status.needsReconnect ? (
+                      <Button onClick={connect} icon={<Plug className="w-4 h-4" />} className="flex-1 !bg-amber-500 hover:!bg-amber-600">
+                        Reconnect
+                      </Button>
+                    ) : (
+                      <Button onClick={syncNow} loading={syncing} icon={<RefreshCw className="w-4 h-4" />} className="flex-1">
+                        Sync now
+                      </Button>
+                    )}
                     <Button variant="secondary" onClick={disconnect} icon={<Unplug className="w-4 h-4" />}>
                       Disconnect
                     </Button>

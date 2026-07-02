@@ -14,6 +14,8 @@ export type FitbitConnectionRow = {
   scopes: string | null
   excluded_activities: string[]
   last_sync_at: string | null
+  connected_at: string | null
+  needs_reconnect: boolean
 }
 
 export async function loadConnection(
@@ -22,10 +24,16 @@ export async function loadConnection(
 ): Promise<FitbitConnectionRow | null> {
   const { data } = await supabase
     .from('fitbit_connections')
-    .select('user_id,fitbit_user_id,access_token_enc,refresh_token_enc,expires_at,scopes,excluded_activities,last_sync_at')
+    .select('user_id,fitbit_user_id,access_token_enc,refresh_token_enc,expires_at,scopes,excluded_activities,last_sync_at,connected_at,needs_reconnect')
     .eq('user_id', userId)
     .maybeSingle()
   return (data as FitbitConnectionRow) ?? null
+}
+
+// A refresh/auth failure (vs. a transient network error) means the token is
+// dead and the user must re-authorize.
+export function isAuthFailure(message: string): boolean {
+  return /invalid_grant|invalid_token|unauthorized|\b401\b|refresh/i.test(message)
 }
 
 // Returns a valid access token, refreshing + persisting if the current one is
@@ -179,14 +187,20 @@ export async function runSync(
 
     await supabase
       .from('fitbit_connections')
-      .update({ last_sync_at: new Date().toISOString(), last_error: null, updated_at: new Date().toISOString() })
+      .update({ last_sync_at: new Date().toISOString(), last_error: null, needs_reconnect: false, updated_at: new Date().toISOString() })
       .eq('user_id', userId)
 
     return { imported, scanned: points.length, matched: rows.length, linked }
   } catch (err: any) {
+    const message = String(err?.message ?? err)
     await supabase
       .from('fitbit_connections')
-      .update({ last_error: String(err?.message ?? err).slice(0, 500), updated_at: new Date().toISOString() })
+      .update({
+        last_error: message.slice(0, 500),
+        // Auth failures mean the refresh token expired/was revoked -> reconnect.
+        ...(isAuthFailure(message) ? { needs_reconnect: true } : {}),
+        updated_at: new Date().toISOString(),
+      })
       .eq('user_id', userId)
     throw err
   }

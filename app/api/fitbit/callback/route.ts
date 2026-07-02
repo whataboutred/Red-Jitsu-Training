@@ -56,6 +56,9 @@ export async function GET(req: NextRequest) {
           ? (existing as any).excluded_activities
           : [],
       last_error: null,
+      // Fresh authorization resets the 7-day clock and clears any stale flag.
+      connected_at: new Date().toISOString(),
+      needs_reconnect: false,
       updated_at: new Date().toISOString(),
     }
 

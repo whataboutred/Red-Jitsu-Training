@@ -225,6 +225,9 @@ export default function CardioPage() {
   const [elapsedSeconds, setElapsedSeconds] = useState(0)
   const [targetDuration, setTargetDuration] = useState(30) // Default target 30 mins
 
+  // Fitbit reconnect nudge — only shown on this cardio surface, dismissible.
+  const [needsReconnect, setNeedsReconnect] = useState(false)
+
   // Auth check and load data
   useEffect(() => {
     ;(async () => {
@@ -232,6 +235,18 @@ export default function CardioPage() {
       setDemo(isDemo)
       await loadWeekStats()
       setLoading(false)
+      if (!isDemo && sessionStorage.getItem('rj-fitbit-reconnect-dismissed') !== '1') {
+        try {
+          const { data: { session } } = await supabase.auth.getSession()
+          if (session?.access_token) {
+            const res = await fetch('/api/fitbit/status', { headers: { Authorization: `Bearer ${session.access_token}` } })
+            const s = await res.json()
+            if (s?.connected && s?.needsReconnect) setNeedsReconnect(true)
+          }
+        } catch {
+          /* non-critical */
+        }
+      }
     })()
   }, [])
 
@@ -396,6 +411,26 @@ export default function CardioPage() {
       </div>
 
       <div className="p-4 space-y-4">
+        {/* Fitbit reconnect nudge — quiet, contextual, dismissible */}
+        {needsReconnect && (
+          <div className="flex items-center gap-2 rounded-xl bg-amber-500/10 border border-amber-500/30 px-3 py-2.5">
+            <RotateCcw className="w-4 h-4 text-amber-400 flex-shrink-0" />
+            <Link href="/settings/connections" className="flex-1 text-xs text-amber-200 leading-snug">
+              Fitbit sync is paused. Reconnect to resume auto-importing your cardio.
+            </Link>
+            <button
+              onClick={() => {
+                setNeedsReconnect(false)
+                sessionStorage.setItem('rj-fitbit-reconnect-dismissed', '1')
+              }}
+              className="p-1 text-amber-400/70 hover:text-amber-300"
+              aria-label="Dismiss"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
+
         {/* Week Stats Card */}
         <AnimatedCard delay={0} className="overflow-hidden">
           <div className="flex items-center gap-4">
