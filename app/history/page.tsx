@@ -27,6 +27,7 @@ import { ProgressRing } from '@/components/ui/ProgressRing'
 import { Button } from '@/components/ui/Button'
 import { Skeleton, SkeletonCard } from '@/components/ui/Skeleton'
 import { Sparkline } from '@/components/ui/Sparkline'
+import ExerciseProgressSheet from '@/components/ExerciseProgressSheet'
 import { SwipeableRow } from '@/components/ui/SwipeableRow'
 import { ConfirmDialog } from '@/components/ui/BottomSheet'
 import { useToast } from '@/components/Toast'
@@ -149,6 +150,7 @@ function HistoryClient() {
   const [totalCounts, setTotalCounts] = useState({ workouts: 0, bjj: 0, cardio: 0 })
   const [progressionData, setProgressionData] = useState<ProgressionData[]>([])
   const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgress[]>([])
+  const [detailExerciseId, setDetailExerciseId] = useState<string | null>(null)
   const [streakData, setStreakData] = useState<StreakData | null>(null)
   const [activeProgramExercises, setActiveProgramExercises] = useState<Set<string>>(new Set())
   const [hasActiveProgram, setHasActiveProgram] = useState(false)
@@ -913,6 +915,18 @@ function HistoryClient() {
       .slice(0, 3)
   }, [exerciseProgress])
 
+  // Full per-exercise progression detail for the tapped lift.
+  const detailExercise = useMemo(() => {
+    if (!detailExerciseId) return null
+    const p = progressionData.find(x => x.exerciseId === detailExerciseId)
+    if (!p) return null
+    return {
+      name: p.exerciseName,
+      unit: 'lb',
+      points: p.data.map(d => ({ date: d.date, oneRepMax: d.oneRepMax, maxWeight: d.maxWeight })),
+    }
+  }, [detailExerciseId, progressionData])
+
   const getActivityIcon = (type: string) => {
     switch (type) {
       case 'strength': return <Dumbbell className="w-5 h-5" />
@@ -1021,7 +1035,8 @@ function HistoryClient() {
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: idx * 0.08 }}
-                            className="flex items-center justify-between gap-3 py-2.5 border-b border-white/[0.04] last:border-0"
+                            onClick={() => setDetailExerciseId(exercise.exerciseId)}
+                            className="flex items-center justify-between gap-3 py-2.5 -mx-2 px-2 rounded-lg cursor-pointer hover:bg-white/[0.03] border-b border-white/[0.04] last:border-0"
                           >
                             <div className="min-w-0">
                               <p className="font-medium text-white text-sm truncate">{exercise.exerciseName}</p>
@@ -1050,7 +1065,8 @@ function HistoryClient() {
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
                             transition={{ delay: idx * 0.08 }}
-                            className="flex items-center justify-between gap-3 py-2.5 border-b border-white/[0.04] last:border-0"
+                            onClick={() => setDetailExerciseId(exercise.exerciseId)}
+                            className="flex items-center justify-between gap-3 py-2.5 -mx-2 px-2 rounded-lg cursor-pointer hover:bg-white/[0.03] border-b border-white/[0.04] last:border-0"
                           >
                             <div className="min-w-0">
                               <p className="font-medium text-white text-sm truncate">{exercise.exerciseName}</p>
@@ -1066,6 +1082,26 @@ function HistoryClient() {
                     ) : (
                       <p className="text-zinc-500 text-sm py-2">All exercises progressing well!</p>
                     )}
+                  </div>
+                </div>
+              )}
+
+              {/* All tracked lifts — tap any for full progression */}
+              {progressionData.length > 0 && (
+                <div className="mt-5 pt-4 border-t border-white/[0.06]">
+                  <h4 className="text-xs font-display uppercase tracking-wider text-zinc-400 mb-2">All lifts · tap for detail</h4>
+                  <div className="flex flex-wrap gap-2">
+                    {[...progressionData]
+                      .sort((a, b) => a.exerciseName.localeCompare(b.exerciseName))
+                      .map((p) => (
+                        <button
+                          key={p.exerciseId}
+                          onClick={() => setDetailExerciseId(p.exerciseId)}
+                          className="px-3 py-1.5 rounded-lg text-xs font-medium bg-surface border border-white/[0.07] text-zinc-300 hover:text-white hover:border-white/20 transition-all"
+                        >
+                          {p.exerciseName}
+                        </button>
+                      ))}
                   </div>
                 </div>
               )}
@@ -1254,6 +1290,12 @@ function HistoryClient() {
           message="This entry will be permanently deleted. This cannot be undone."
           confirmText="Delete"
           variant="danger"
+        />
+
+        <ExerciseProgressSheet
+          isOpen={detailExerciseId !== null}
+          onClose={() => setDetailExerciseId(null)}
+          exercise={detailExercise}
         />
       </div>
     </div>
