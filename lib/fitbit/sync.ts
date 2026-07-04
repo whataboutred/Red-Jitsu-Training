@@ -64,17 +64,24 @@ export async function ensureFreshToken(
   return fresh.accessToken
 }
 
+// The incremental sync filters by each session's START time. Fitbit->Google
+// sync is often delayed, so a session can land in Google *after* a cron already
+// advanced past its start time — and would then never be re-scanned. Re-scan a
+// few days of overlap each run so late arrivals are caught automatically
+// (dedupe by external_id makes the overlap free).
+const INCREMENTAL_BUFFER_DAYS = 4
+
 // Look-back start time as ISO 8601 without a zone suffix (Google's
 // civil_start_time format). With lookbackDays, ignore last_sync (a backfill);
-// otherwise sync incrementally from the last sync (default 30-day first run).
+// otherwise sync incrementally from (last sync − buffer); 30-day first run.
 function afterDateFor(conn: FitbitConnectionRow, lookbackDays?: number): string {
   let base: Date
   if (lookbackDays) {
     base = new Date(Date.now() - lookbackDays * 24 * 60 * 60 * 1000)
+  } else if (conn.last_sync_at) {
+    base = new Date(new Date(conn.last_sync_at).getTime() - INCREMENTAL_BUFFER_DAYS * 24 * 60 * 60 * 1000)
   } else {
-    base = conn.last_sync_at
-      ? new Date(conn.last_sync_at)
-      : new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
+    base = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000)
   }
   return base.toISOString().slice(0, 19) // YYYY-MM-DDTHH:MM:SS
 }
