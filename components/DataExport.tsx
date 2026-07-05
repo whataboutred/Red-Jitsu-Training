@@ -210,7 +210,7 @@ export default function DataExport() {
         <div className="p-2 rounded-lg bg-red-500/10">
           <Download className="w-5 h-5 text-red-500" />
         </div>
-        <h3 className="text-lg font-semibold text-white">Export Your Data</h3>
+        <h3 className="font-display uppercase text-lg text-white">Export Your Data</h3>
       </div>
 
       <p className="text-sm text-zinc-400 mb-5">

@@ -550,7 +550,7 @@ export default function BJJPage() {
                 color={goalProgress >= 100 ? '#10b981' : bs.hex}
               />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-lg font-bold" style={{ color: goalProgress >= 100 ? '#34D399' : bs.hex }}>
+                <span className="text-lg font-display" style={{ color: goalProgress >= 100 ? '#34D399' : bs.hex }}>
                   {weekStats.sessions}
                 </span>
               </div>
@@ -567,11 +567,11 @@ export default function BJJPage() {
               </div>
               <div className="grid grid-cols-2 gap-4 mt-2">
                 <div>
-                  <p className="text-xl font-bold text-white">{weekStats.sessions}/{weekStats.weeklyGoal}</p>
+                  <p className="text-xl font-display text-white">{weekStats.sessions}/{weekStats.weeklyGoal}</p>
                   <p className="text-xs text-zinc-500">Sessions</p>
                 </div>
                 <div>
-                  <p className="text-xl font-bold text-[var(--belt)]">{weekStats.totalMinutes}</p>
+                  <p className="text-xl font-display text-[var(--belt)]">{weekStats.totalMinutes}</p>
                   <p className="text-xs text-zinc-500">Mat Minutes</p>
                 </div>
               </div>

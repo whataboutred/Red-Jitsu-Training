@@ -442,22 +442,22 @@ export default function CardioPage() {
                 color="#10b981"
               />
               <div className="absolute inset-0 flex items-center justify-center">
-                <span className="text-lg font-bold text-emerald-400">{weekStats.sessions}</span>
+                <span className="text-lg font-display text-emerald-400">{weekStats.sessions}</span>
               </div>
             </div>
             <div className="flex-1">
               <p className="text-sm font-medium text-white mb-2">This Week</p>
               <div className="grid grid-cols-3 gap-2 text-center">
                 <div>
-                  <p className="text-lg font-bold text-white">{weekStats.totalMinutes}</p>
+                  <p className="text-lg font-display text-white">{weekStats.totalMinutes}</p>
                   <p className="text-xs text-zinc-500">mins</p>
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-white">{weekStats.totalDistance.toFixed(1)}</p>
+                  <p className="text-lg font-display text-white">{weekStats.totalDistance.toFixed(1)}</p>
                   <p className="text-xs text-zinc-500">mi</p>
                 </div>
                 <div>
-                  <p className="text-lg font-bold text-white">{weekStats.totalCalories}</p>
+                  <p className="text-lg font-display text-white">{weekStats.totalCalories}</p>
                   <p className="text-xs text-zinc-500">cal</p>
                 </div>
               </div>

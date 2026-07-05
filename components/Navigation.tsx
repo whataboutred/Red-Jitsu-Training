@@ -21,6 +21,8 @@ import {
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, isDemoVisitor } from '@/lib/activeUser'
 import { hapticTap } from '@/lib/haptics'
+import { useBelt } from '@/lib/useBelt'
+import { beltStyle } from '@/lib/belt'
 import SafeAutoRefresh from '@/components/SafeAutoRefresh'
 import SyncStatus from '@/components/SyncStatus'
 import Wordmark from '@/components/Wordmark'
@@ -144,6 +146,7 @@ function MobileHeader() {
 function BottomNav() {
   const pathname = usePathname()
   const [menuOpen, setMenuOpen] = useState(false)
+  const belt = useBelt()
 
   const leftItems = [
     { href: '/dashboard', label: 'Home', icon: Home },
@@ -154,9 +157,9 @@ function BottomNav() {
     { href: '/settings', label: 'Profile', icon: User },
   ]
   const actions = [
-    { href: '/workouts/new', label: 'Workout', icon: Dumbbell, accent: 'text-brand-red' },
-    { href: '/jiu-jitsu', label: 'Jiu-Jitsu', icon: Activity, accent: 'text-purple-400' },
-    { href: '/cardio', label: 'Cardio', icon: Heart, accent: 'text-emerald-400' },
+    { href: '/workouts/new', label: 'Workout', icon: Dumbbell, accent: 'text-brand-red', style: undefined as React.CSSProperties | undefined },
+    { href: '/jiu-jitsu', label: 'Jiu-Jitsu', icon: Activity, accent: '', style: { color: beltStyle(belt).hex } },
+    { href: '/cardio', label: 'Cardio', icon: Heart, accent: 'text-emerald-400', style: undefined },
   ]
 
   const renderItem = (item: { href: string; label: string; icon: typeof Home }) => {
@@ -215,7 +218,7 @@ function BottomNav() {
                       onClick={() => { hapticTap(); setMenuOpen(false) }}
                       className="flex items-center gap-3 px-4 py-3 rounded-2xl bg-surface-elevated border border-white/10 text-white font-medium shadow-xl active:scale-[0.98] transition-transform"
                     >
-                      <Icon className={`w-5 h-5 ${action.accent}`} />
+                      <Icon className={`w-5 h-5 ${action.accent}`} style={action.style} />
                       <span>{action.label}</span>
                     </Link>
                   </motion.div>
@@ -260,16 +263,18 @@ function BottomNav() {
 function QuickActionFAB() {
   const [isOpen, setIsOpen] = useState(false)
   const pathname = usePathname()
+  const belt = useBelt()
 
   // Don't show FAB on certain pages
   if (pathname?.includes('/workouts/new') || pathname?.includes('/workouts/edit') || pathname === '/settings') {
     return null
   }
 
+  const bs = beltStyle(belt)
   const actions = [
-    { href: '/workouts/new', label: 'Workout', icon: Dumbbell, color: 'bg-red-500' },
-    { href: '/jiu-jitsu', label: 'Jiu-Jitsu', icon: Activity, color: 'bg-purple-500' },
-    { href: '/cardio', label: 'Cardio', icon: Heart, color: 'bg-emerald-500' },
+    { href: '/workouts/new', label: 'Workout', icon: Dumbbell, color: 'bg-red-500', style: undefined as React.CSSProperties | undefined },
+    { href: '/jiu-jitsu', label: 'Jiu-Jitsu', icon: Activity, color: '', style: { backgroundColor: bs.hex, color: bs.onAccent } },
+    { href: '/cardio', label: 'Cardio', icon: Heart, color: 'bg-emerald-500', style: undefined },
   ]
 
   return (
@@ -306,9 +311,10 @@ function QuickActionFAB() {
                     onClick={() => { hapticTap(); setIsOpen(false) }}
                     className={`
                       flex items-center gap-3 pl-4 pr-5 py-3 rounded-full
-                      ${action.color} text-white font-medium
+                      ${action.color} ${action.style ? '' : 'text-white'} font-medium
                       shadow-lg hover:shadow-xl transition-shadow
                     `}
+                    style={action.style}
                   >
                     <Icon className="w-5 h-5" />
                     <span>{action.label}</span>

@@ -211,14 +211,14 @@ export default function ProgramTemplates({ onSelectTemplate }: ProgramTemplatesP
         </div>
         
         {/* Level Filter */}
-        <div className="flex flex-wrap gap-2 mb-6">
+        <div className="flex flex-wrap gap-1 mb-6 -ml-1">
           {(['All', 'Beginner', 'Intermediate', 'Advanced'] as const).map(level => (
             <button
               key={level}
-              className={`px-4 py-2 rounded-full text-sm font-medium transition-all duration-200 ${
-                selectedLevel === level 
-                  ? 'bg-brand-red/20 border-brand-red text-white border' 
-                  : 'bg-surface-elevated border border-white/10 text-zinc-300 hover:bg-surface-elevated hover:border-white/20'
+              className={`px-3.5 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                selectedLevel === level
+                  ? 'bg-white/[0.06] text-white'
+                  : 'text-zinc-500 hover:text-white'
               }`}
               onClick={() => setSelectedLevel(level)}
             >
@@ -242,7 +242,7 @@ export default function ProgramTemplates({ onSelectTemplate }: ProgramTemplatesP
                   <Icon className="w-6 h-6 text-brand-red" />
                 </div>
                 <div>
-                  <div className="font-semibold text-white text-lg">{template.name}</div>
+                  <div className="font-display uppercase text-lg text-white">{template.name}</div>
                   <div className="text-sm text-brand-red/80 font-medium">{template.duration}</div>
                 </div>
               </div>
@@ -250,12 +250,12 @@ export default function ProgramTemplates({ onSelectTemplate }: ProgramTemplatesP
               <div className="text-sm text-zinc-200 mb-4 leading-relaxed">{template.description}</div>
 
               <div className="flex items-center flex-wrap gap-2 mb-4">
-                <span className={`px-2 py-1 rounded-full text-xs border font-medium ${LEVEL_COLORS[template.level]}`}>
+                <span className={`px-2 py-1 rounded-md text-xs border font-medium ${LEVEL_COLORS[template.level]}`}>
                   {template.level}
                 </span>
                 <div className="flex gap-1 flex-wrap">
                   {template.focus.map(focus => (
-                    <span key={focus} className="bg-surface-elevated text-zinc-300 px-2 py-1 rounded-full text-xs font-medium">
+                    <span key={focus} className="bg-white/[0.05] border border-white/[0.08] text-zinc-300 px-2 py-1 rounded-md text-xs font-medium">
                       {focus}
                     </span>
                   ))}
@@ -276,7 +276,7 @@ export default function ProgramTemplates({ onSelectTemplate }: ProgramTemplatesP
           })}
         </div>
 
-        <div className="text-xs text-zinc-400 mt-6 text-center bg-black/20 rounded-xl p-3 flex items-center justify-center gap-1.5">
+        <div className="text-xs text-zinc-400 mt-6 text-center bg-white/[0.03] border border-white/[0.05] rounded-xl p-3 flex items-center justify-center gap-1.5">
           <Info className="w-3.5 h-3.5 flex-shrink-0" />
           Templates include pre-configured exercises, sets, reps, and weekly schedules
         </div>
