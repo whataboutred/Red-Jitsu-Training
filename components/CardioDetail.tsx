@@ -1,12 +1,12 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { getCardioSession, deleteCardioSession } from '@/lib/api'
 import { getActiveUserId } from '@/lib/activeUser'
-import { X, Edit3, Trash2 } from 'lucide-react'
+import { Edit3, Trash2, Watch } from 'lucide-react'
 import { useRouter } from 'next/navigation'
 import { useToast } from '@/components/Toast'
-import { ConfirmDialog } from '@/components/ui/BottomSheet'
+import { BottomSheet, ConfirmDialog } from '@/components/ui/BottomSheet'
 import { Skeleton } from '@/components/ui/Skeleton'
 
 type CardioSession = {
@@ -19,13 +19,31 @@ type CardioSession = {
   calories: number | null
   notes: string | null
   performed_at: string
+  source: string
 }
 
-export default function CardioDetail({ 
-  sessionId, 
+function formatWhen(iso: string) {
+  const d = new Date(iso)
+  return `${d.toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })} · ${d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' })}`
+}
+
+// Fitbit imports stamp their notes with a source prefix; the header pill
+// already says Fitbit, so only the useful remainder (HR / zone data) shows.
+function cleanNotes(session: CardioSession): string | null {
+  const notes = session.notes?.trim()
+  if (!notes) return null
+  if (session.source === 'fitbit') {
+    const stripped = notes.replace(/^Imported from Fitbit(\s*·\s*)?/i, '').trim()
+    return stripped || null
+  }
+  return notes
+}
+
+export default function CardioDetail({
+  sessionId,
   onClose,
-  onUpdate 
-}: { 
+  onUpdate
+}: {
   sessionId: string
   onClose: () => void
   onUpdate?: () => void
@@ -34,11 +52,19 @@ export default function CardioDetail({
   const [session, setSession] = useState<CardioSession | null>(null)
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
+  const [open, setOpen] = useState(true)
   const router = useRouter()
   const toast = useToast()
 
+  // Play the sheet's slide-down exit before unmounting.
+  const close = useCallback(() => {
+    setOpen(false)
+    setTimeout(onClose, 250)
+  }, [onClose])
+
   useEffect(() => {
     loadSessionData()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId])
 
   async function loadSessionData() {
@@ -65,7 +91,7 @@ export default function CardioDetail({
       if (onUpdate) {
         onUpdate()
       }
-      onClose()
+      close()
     } catch (error) {
       toast.error('Failed to delete cardio session')
       console.error('Delete error:', error)
@@ -78,115 +104,108 @@ export default function CardioDetail({
     router.push(`/cardio/edit/${sessionId}`)
   }
 
-  if (loading) return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="card max-w-lg w-full mx-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1 space-y-3 py-1">
-            <Skeleton variant="text" className="w-1/2" />
-            <Skeleton variant="text" className="w-1/3" />
-            <Skeleton variant="rounded" className="h-24 w-full" />
-          </div>
-          <button onClick={onClose} className="p-1 hover:bg-white/5 rounded-lg" aria-label="Close">
-            <X className="w-5 h-5" />
-          </button>
-        </div>
-      </div>
-    </div>
-  )
+  const notes = session ? cleanNotes(session) : null
 
-  if (!session) return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80">
-      <div className="card max-w-lg w-full mx-4">
-        <div className="flex items-center justify-between">
-          <div>Session not found or access denied.</div>
-          <button onClick={onClose} className="p-1 hover:bg-white/5 rounded-lg" aria-label="Close">
-            <X className="w-5 h-5" />
+  const header = session ? (
+    <div>
+      <div className="flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-[10px] uppercase tracking-wider text-emerald-400 font-semibold mb-1">Cardio</p>
+          <h2 className="text-2xl font-display uppercase text-white leading-none truncate">{session.activity}</h2>
+          <p className="text-sm text-zinc-500 mt-1.5">{formatWhen(session.performed_at)}</p>
+        </div>
+        <div className="flex items-center gap-1 flex-shrink-0 -mr-1">
+          <button
+            onClick={handleEdit}
+            className="p-2.5 rounded-xl text-zinc-400 hover:text-white hover:bg-white/5 active:scale-95 transition-all"
+            aria-label="Edit session"
+          >
+            <Edit3 className="w-5 h-5" />
+          </button>
+          <button
+            onClick={() => setConfirmDelete(true)}
+            disabled={deleting}
+            className="p-2.5 rounded-xl text-red-400/80 hover:text-red-400 hover:bg-red-500/10 active:scale-95 transition-all disabled:opacity-50"
+            aria-label="Delete session"
+          >
+            <Trash2 className="w-5 h-5" />
           </button>
         </div>
       </div>
+      {session.source === 'fitbit' && (
+        <div className="mt-2 inline-flex items-center gap-1.5 rounded-md bg-white/[0.06] border border-white/[0.12] px-2 py-0.5 text-[11px] font-medium text-zinc-300">
+          <Watch className="w-3 h-3" />
+          Imported from Fitbit
+        </div>
+      )}
     </div>
-  )
+  ) : undefined
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-4" onClick={onClose}>
-      <div className="card max-w-2xl w-full max-h-[90vh] flex flex-col" onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div className="flex items-center justify-between mb-4 pb-4 border-b border-white/10">
-          <div>
-            <div className="font-medium text-lg">{session.activity}</div>
-            <div className="text-sm text-zinc-300">{new Date(session.performed_at).toLocaleString()}</div>
+    <>
+      <BottomSheet isOpen={open} onClose={close} snapPoints={[0.62]} header={header}>
+        {loading ? (
+          <div className="space-y-3 pt-2">
+            <Skeleton variant="text" className="w-1/2" />
+            <Skeleton variant="rounded" className="h-20 w-full" />
+            <Skeleton variant="rounded" className="h-20 w-full" />
           </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={handleEdit}
-              className="toggle text-sm px-3 py-1" 
-              aria-label="Edit session"
-            >
-              Edit
-            </button>
-            <button
-              onClick={() => setConfirmDelete(true)}
-              disabled={deleting}
-              className="p-2 hover:bg-white/5 rounded-lg text-red-400 hover:text-red-300 disabled:opacity-50 transition-colors" 
-              aria-label="Delete session"
-            >
-              <Trash2 className="w-4 h-4" />
-            </button>
-            <button onClick={onClose} className="p-2 hover:bg-white/5 rounded-lg transition-colors" aria-label="Close">
-              <X className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+        ) : !session ? (
+          <p className="text-zinc-400 pt-2">Session not found or access denied.</p>
+        ) : (
+          <div className="space-y-3">
+            <div className="grid grid-cols-2 gap-2">
+              {session.duration_minutes != null && (
+                <div className="bg-surface-elevated rounded-xl p-3.5">
+                  <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Duration</div>
+                  <div className="font-display text-3xl text-emerald-400 leading-none">
+                    {session.duration_minutes}
+                    <span className="text-sm text-zinc-500 ml-1.5 font-sans font-normal">min</span>
+                  </div>
+                </div>
+              )}
 
-        {/* Content */}
-        <div className="flex-1 overflow-y-auto space-y-4 pr-2">
-          <div className="bg-surface-elevated rounded-2xl p-4">
-            <div className="grid grid-cols-2 gap-4">
-              {session.duration_minutes && (
-                <div>
-                  <div className="text-sm text-zinc-400">Duration</div>
-                  <div className="font-medium">{session.duration_minutes} minutes</div>
+              {session.distance != null && session.distance > 0 && session.distance_unit && (
+                <div className="bg-surface-elevated rounded-xl p-3.5">
+                  <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Distance</div>
+                  <div className="font-display text-3xl text-white leading-none">
+                    {session.distance}
+                    <span className="text-sm text-zinc-500 ml-1.5 font-sans font-normal">{session.distance_unit}</span>
+                  </div>
                 </div>
               )}
-              
-              {session.distance && session.distance_unit && (
-                <div>
-                  <div className="text-sm text-zinc-400">Distance</div>
-                  <div className="font-medium">{session.distance} {session.distance_unit}</div>
+
+              {session.calories != null && (
+                <div className="bg-surface-elevated rounded-xl p-3.5">
+                  <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Calories</div>
+                  <div className="font-display text-3xl text-white leading-none">
+                    {session.calories}
+                    <span className="text-sm text-zinc-500 ml-1.5 font-sans font-normal">cal</span>
+                  </div>
                 </div>
               )}
-              
+
               {session.intensity && (
-                <div>
-                  <div className="text-sm text-zinc-400">Intensity</div>
-                  <div className="font-medium capitalize">{session.intensity}</div>
-                </div>
-              )}
-              
-              {session.calories && (
-                <div>
-                  <div className="text-sm text-zinc-400">Calories</div>
-                  <div className="font-medium">{session.calories} cal</div>
+                <div className="bg-surface-elevated rounded-xl p-3.5">
+                  <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Intensity</div>
+                  <div className="font-display text-3xl text-white leading-none capitalize">{session.intensity}</div>
                 </div>
               )}
             </div>
 
-            {session.notes && (
-              <div className="mt-4 pt-4 border-t border-white/10">
-                <div className="text-sm text-zinc-400 mb-2">Notes</div>
-                <div className="text-white">{session.notes}</div>
+            {notes && (
+              <div className="bg-surface-elevated rounded-xl p-3.5">
+                <div className="text-[10px] uppercase tracking-wider text-zinc-500 mb-1.5">Notes</div>
+                <p className="text-sm text-zinc-300 whitespace-pre-wrap">{notes}</p>
               </div>
             )}
 
-            {!session.duration_minutes && !session.distance && !session.calories && !session.notes && (
-              <div className="text-center text-zinc-400 py-4">
-                No additional details recorded for this session.
-              </div>
+            {!session.duration_minutes && !session.distance && !session.calories && !notes && (
+              <p className="text-center text-zinc-500 py-6">No additional details recorded for this session.</p>
             )}
           </div>
-        </div>
-      </div>
+        )}
+      </BottomSheet>
 
       <ConfirmDialog
         isOpen={confirmDelete}
@@ -197,6 +216,6 @@ export default function CardioDetail({
         confirmText="Delete"
         variant="danger"
       />
-    </div>
+    </>
   )
 }
