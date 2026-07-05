@@ -28,6 +28,7 @@ import BackgroundLogo from '@/components/BackgroundLogo'
 import OnboardingWizard from '@/components/OnboardingWizard'
 import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { startOfLocalWeek } from '@/lib/dateUtils'
+import { beltStyle } from '@/lib/belt'
 
 type ProgramDay = {
   id: string
@@ -42,6 +43,11 @@ export default function Dashboard() {
   const [totalWorkouts, setTotalWorkouts] = useState(0)
   const [displayName, setDisplayName] = useState<string>('')
   const [weeklyGoal, setWeeklyGoal] = useState<number>(4)
+  const [bjjGoal, setBjjGoal] = useState<number>(0)
+  const [cardioGoal, setCardioGoal] = useState<number>(0)
+  const [bjjWeekCount, setBjjWeekCount] = useState(0)
+  const [cardioWeekCount, setCardioWeekCount] = useState(0)
+  const [belt, setBelt] = useState<string | null>(null)
   const [todayWorkoutDay, setTodayWorkoutDay] = useState<string | null>(null)
   const [todayWorkoutDayId, setTodayWorkoutDayId] = useState<string | null>(null)
   const [todayQuote, setTodayQuote] = useState<Quote | null>(null)
@@ -66,10 +72,10 @@ export default function Dashboard() {
 
     // Head-count queries: the dashboard only needs two numbers, not rows
     const weekStartISO = startOfLocalWeek().toISOString()
-    const [profRes, weekCountRes, totalCountRes, activeProgramRes] = await Promise.all([
+    const [profRes, weekCountRes, totalCountRes, bjjWeekRes, cardioWeekRes, activeProgramRes] = await Promise.all([
       supabase
         .from('profiles')
-        .select('display_name,weekly_goal')
+        .select('display_name,weekly_goal,bjj_weekly_goal,cardio_weekly_goal,bjj_belt')
         .eq('id', userId)
         .maybeSingle(),
       supabase
@@ -82,6 +88,16 @@ export default function Dashboard() {
         .select('id', { count: 'exact', head: true })
         .eq('user_id', userId),
       supabase
+        .from('bjj_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('performed_at', weekStartISO),
+      supabase
+        .from('cardio_sessions')
+        .select('id', { count: 'exact', head: true })
+        .eq('user_id', userId)
+        .gte('performed_at', weekStartISO),
+      supabase
         .from('programs')
         .select('id')
         .eq('user_id', userId)
@@ -93,6 +109,9 @@ export default function Dashboard() {
     if (prof) {
       setDisplayName(prof.display_name ?? '')
       setWeeklyGoal(prof.weekly_goal ?? 4)
+      setBjjGoal(prof.bjj_weekly_goal ?? 0)
+      setCardioGoal(prof.cardio_weekly_goal ?? 0)
+      setBelt(prof.bjj_belt ?? null)
     } else if (!DEMO) {
       // No profile yet — brand-new account, run first-time setup
       setOnboardingUserId(userId)
@@ -100,6 +119,8 @@ export default function Dashboard() {
 
     setThisWeekCount(weekCountRes.count ?? 0)
     setTotalWorkouts(totalCountRes.count ?? 0)
+    setBjjWeekCount(bjjWeekRes.count ?? 0)
+    setCardioWeekCount(cardioWeekRes.count ?? 0)
 
     const activeProgram = activeProgramRes.data
     if (activeProgram) {
@@ -218,6 +239,36 @@ export default function Dashboard() {
           <p className="text-sm text-zinc-500 mt-2 uppercase tracking-wide">Total workouts</p>
         </Link>
       </motion.div>
+
+      {/* Other weekly goals — one slim line per activity with a goal set; a
+          goal of 0 hides it (the promise onboarding makes) */}
+      {(bjjGoal > 0 || cardioGoal > 0) && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.07 }}
+          className="flex items-center gap-8 -mt-4"
+        >
+          {bjjGoal > 0 && (
+            <Link href="/jiu-jitsu" className="flex items-baseline gap-2.5 active:scale-[0.98] transition-transform">
+              <span className="text-sm uppercase tracking-wide text-zinc-500">BJJ</span>
+              <span className="text-3xl font-display leading-none" style={{ color: beltStyle(belt).hex }}>
+                <CountUp value={bjjWeekCount} />
+                <span className="text-lg text-zinc-600"> / {bjjGoal}</span>
+              </span>
+            </Link>
+          )}
+          {cardioGoal > 0 && (
+            <Link href="/cardio" className="flex items-baseline gap-2.5 active:scale-[0.98] transition-transform">
+              <span className="text-sm uppercase tracking-wide text-zinc-500">Cardio</span>
+              <span className="text-3xl font-display leading-none text-emerald-400">
+                <CountUp value={cardioWeekCount} />
+                <span className="text-lg text-zinc-600"> / {cardioGoal}</span>
+              </span>
+            </Link>
+          )}
+        </motion.div>
+      )}
 
       {/* Today's scheduled session — only shown when today maps to a program day */}
       {todayWorkoutDay && (
