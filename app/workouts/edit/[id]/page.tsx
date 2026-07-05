@@ -1099,7 +1099,7 @@ export default function EditWorkoutPage() {
               <ArrowLeft className="w-5 h-5" />
             </Link>
             <div className="min-w-0">
-              <h1 className="font-bold text-lg truncate">{title || 'Edit Workout'}</h1>
+              <h1 className="font-display uppercase text-lg text-white truncate">{title || 'Edit Workout'}</h1>
               <p className="text-sm text-zinc-500">
                 {exercises.length} exercise{exercises.length !== 1 ? 's' : ''}
                 {lastSaved && (

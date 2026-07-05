@@ -186,7 +186,8 @@ export default function OnboardingWizard({
       body: (
         <p className="mb-2 text-sm text-zinc-400">
           Your dashboard tracks weekly consistency and streaks against these goals — and
-          every new personal record gets celebrated. Best way to start? Log something.
+          every exercise builds a progression chart so you can see the overload working.
+          Best way to start? Log something.
         </p>
       ),
     },

@@ -65,7 +65,7 @@ function ResetPasswordForm() {
   if (step === 'checking') {
     return (
       <div className="max-w-md mx-auto p-6">
-        <h1 className="text-lg font-semibold mb-2">Resetting password…</h1>
+        <h1 className="text-2xl font-display uppercase text-white mb-2">Resetting password…</h1>
         <p className="text-zinc-300 text-sm">Please wait.</p>
       </div>
     )
@@ -74,7 +74,7 @@ function ResetPasswordForm() {
   if (step === 'done') {
     return (
       <div className="max-w-md mx-auto p-6">
-        <h1 className="text-lg font-semibold mb-2">Password updated</h1>
+        <h1 className="text-2xl font-display uppercase text-white mb-2">Password updated</h1>
         <p className="text-zinc-300 text-sm mb-4">You can now sign in with your new password.</p>
         <Link href="/login" className="btn">Go to login</Link>
       </div>
@@ -84,7 +84,7 @@ function ResetPasswordForm() {
   if (step === 'error') {
     return (
       <div className="max-w-md mx-auto p-6">
-        <h1 className="text-lg font-semibold mb-2">Reset link error</h1>
+        <h1 className="text-2xl font-display uppercase text-white mb-2">Reset link error</h1>
         <p className="text-red-400 text-sm mb-4">{error}</p>
         <Link href="/login" className="btn">Back to login</Link>
       </div>
@@ -94,7 +94,7 @@ function ResetPasswordForm() {
   // step === 'ready'
   return (
     <div className="max-w-md mx-auto p-6">
-      <h1 className="text-xl font-semibold mb-4">Set a new password</h1>
+      <h1 className="text-2xl font-display uppercase text-white mb-4">Set a new password</h1>
       <form onSubmit={submit} className="space-y-4">
         <div>
           <label className="block text-sm text-zinc-300 mb-1">New password</label>
@@ -144,7 +144,7 @@ export default function ResetPasswordPage() {
       <div className="relative z-10">
         <Suspense fallback={
           <div className="max-w-md mx-auto p-6">
-            <h1 className="text-lg font-semibold mb-2">Loading...</h1>
+            <h1 className="text-2xl font-display uppercase text-white mb-2">Loading…</h1>
             <p className="text-zinc-300 text-sm">Please wait.</p>
           </div>
         }>
