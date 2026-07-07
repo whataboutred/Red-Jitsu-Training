@@ -93,7 +93,7 @@ export default function EditJiuJitsuPage() {
       // Belt (theming) + known partners (autocomplete)
       const { data: prof } = await supabase.from('profiles').select('bjj_belt').eq('id', userId).maybeSingle()
       if (prof?.bjj_belt) setBelt(prof.bjj_belt)
-      const { data: partnerRows } = await supabase.from('bjj_sessions').select('partners').eq('user_id', userId).not('partners', 'is', null).limit(200)
+      const { data: partnerRows } = await supabase.from('bjj_sessions').select('partners').eq('user_id', userId).not('partners', 'is', null).order('performed_at', { ascending: false }).limit(200)
       const names = new Set<string>()
       for (const r of partnerRows ?? []) for (const n of (r.partners ?? [])) names.add(n)
       setKnownPartners([...names].sort())

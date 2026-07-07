@@ -6,7 +6,13 @@
 // don't store duration, so we use a flat moderate estimate per session — good
 // enough for the week-over-week *trend*, which is what matters for readiness.
 
-const IFACTOR: Record<string, number> = { low: 3, medium: 6, high: 9 }
+// Keys cover both vocabularies in the schema: bjj_sessions uses
+// light/moderate/intense, cardio_sessions uses low/moderate/high.
+const IFACTOR: Record<string, number> = {
+  low: 3, light: 3,
+  medium: 6, moderate: 6,
+  high: 9, intense: 9,
+}
 const STRENGTH_SESSION_LOAD = 270 // ~45 min at a moderate factor
 
 export type LoadInputs = {
@@ -84,7 +90,10 @@ export function readiness(weeks: WeekLoad[]): Readiness {
   if (prior.length === 0) return { status: 'building', label: 'Building baseline', note: 'Keep logging to establish your normal load.' }
   const avg = prior.reduce((a, b) => a + b, 0) / prior.length
 
-  const daysElapsed = new Date().getDay() + 1 // Sun=1 … Sat=7
+  // Clamp the elapsed fraction so a single Sunday/Monday session doesn't
+  // project to an absurd full-week load (and an empty Sunday doesn't read
+  // as a guaranteed "light week").
+  const daysElapsed = Math.max(new Date().getDay() + 1, 3) // Sun=1 … Sat=7
   const projected = current / (daysElapsed / 7)
   const ratio = avg > 0 ? projected / avg : 1
 

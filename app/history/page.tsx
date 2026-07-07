@@ -38,6 +38,7 @@ import { useDataRefresh } from '@/hooks/useDataRefresh'
 import { supabase } from '@/lib/supabaseClient'
 import { DEMO, getActiveUserId } from '@/lib/activeUser'
 import { useSearchParams, useRouter } from 'next/navigation'
+import { estimated1RM } from '@/lib/formulas'
 import WorkoutDetail from '@/components/WorkoutDetail'
 import BJJDetail from '@/components/BJJDetail'
 import Achievements from '@/components/Achievements'
@@ -154,6 +155,7 @@ function HistoryClient() {
   const [exerciseProgress, setExerciseProgress] = useState<ExerciseProgress[]>([])
   const [detailExerciseId, setDetailExerciseId] = useState<string | null>(null)
   const [belt, setBelt] = useState<string>('purple')
+  const [unit, setUnit] = useState<'lb' | 'kg'>('lb')
   // Dedicated 8-week dataset for Training Load (independent of list pagination).
   const [trendInputs, setTrendInputs] = useState<{
     workouts: { performed_at: string }[]
@@ -216,72 +218,25 @@ function HistoryClient() {
   const [page, setPage] = useState(0)
   const [hasMore, setHasMore] = useState(true)
   const [loadingMore, setLoadingMore] = useState(false)
+  const [visibleCount, setVisibleCount] = useState(30)
   const PAGE_SIZE = 50
-
-  // Filter workouts based on selected time period
-  const filteredWorkouts = useMemo(() => {
-    const now = new Date()
-
-    if (workoutFilter === 'custom' && customDateFrom) {
-      const from = new Date(customDateFrom)
-      const to = customDateTo ? new Date(customDateTo + 'T23:59:59') : now
-      return workouts.filter(w => {
-        const d = new Date(w.performed_at)
-        return d >= from && d <= to
-      })
-    }
-
-    const cutoff = new Date()
-    switch (workoutFilter) {
-      case 'week':
-        cutoff.setDate(now.getDate() - 7)
-        break
-      case 'month':
-        cutoff.setMonth(now.getMonth() - 1)
-        break
-      default:
-        cutoff.setFullYear(now.getFullYear() - 1)
-    }
-
-    return workouts.filter(w => new Date(w.performed_at) >= cutoff)
-  }, [workouts, workoutFilter, customDateFrom, customDateTo])
-
-  // Calculate workout frequency stats
-  const workoutStats = useMemo(() => {
-    const now = new Date()
-    const thisWeek = workouts.filter(w => {
-      const date = new Date(w.performed_at)
-      const weekStart = new Date(now)
-      weekStart.setDate(now.getDate() - now.getDay())
-      return date >= weekStart
-    }).length
-
-    const thisMonth = workouts.filter(w => {
-      const date = new Date(w.performed_at)
-      return date.getMonth() === now.getMonth() && date.getFullYear() === now.getFullYear()
-    }).length
-
-    const avgPerWeek = workouts.length > 0 ?
-      Math.round((workouts.length / Math.max(1, (Date.now() - new Date(workouts[workouts.length - 1].performed_at).getTime()) / (1000 * 60 * 60 * 24 * 7))) * 10) / 10 : 0
-
-    return { thisWeek, thisMonth, avgPerWeek, total: workouts.length }
-  }, [workouts])
 
   // Combined activities for timeline
   const allActivities = useMemo(() => {
-    // Calculate time cutoff based on workoutFilter
+    // Time bounds from the filter. 'all' is genuinely unbounded; 'custom'
+    // honors the picked range.
     const now = new Date()
-    const cutoff = new Date()
-
-    switch (workoutFilter) {
-      case 'week':
-        cutoff.setDate(now.getDate() - 7)
-        break
-      case 'month':
-        cutoff.setMonth(now.getMonth() - 1)
-        break
-      default:
-        cutoff.setFullYear(now.getFullYear() - 1)
+    let from: Date | null = null
+    let to: Date | null = null
+    if (workoutFilter === 'week') {
+      from = new Date(now)
+      from.setDate(now.getDate() - 7)
+    } else if (workoutFilter === 'month') {
+      from = new Date(now)
+      from.setMonth(now.getMonth() - 1)
+    } else if (workoutFilter === 'custom') {
+      if (customDateFrom) from = new Date(customDateFrom)
+      if (customDateTo) to = new Date(customDateTo + 'T23:59:59')
     }
 
     const activities: Array<{
@@ -339,9 +294,9 @@ function HistoryClient() {
 
     return activities
       .filter(a => activityFilter === 'all' || a.type === activityFilter)
-      .filter(a => a.date >= cutoff)
+      .filter(a => (!from || a.date >= from) && (!to || a.date <= to))
       .sort((a, b) => b.date.getTime() - a.date.getTime())
-  }, [workouts, bjj, cardio, activityFilter, workoutFilter])
+  }, [workouts, bjj, cardio, activityFilter, workoutFilter, customDateFrom, customDateTo])
 
   const loadHistoryData = useCallback(async () => {
     const userId = await getActiveUserId()
@@ -359,9 +314,10 @@ function HistoryClient() {
       cardio: cardioHead.count ?? 0,
     })
 
-    // Belt drives the BJJ accent throughout history
-    const { data: prof } = await supabase.from('profiles').select('bjj_belt').eq('id', userId).maybeSingle()
+    // Belt drives the BJJ accent throughout history; unit labels every weight
+    const { data: prof } = await supabase.from('profiles').select('bjj_belt,unit').eq('id', userId).maybeSingle()
     if (prof?.bjj_belt) setBelt(prof.bjj_belt)
+    if (prof?.unit === 'kg' || prof?.unit === 'lb') setUnit(prof.unit)
 
     // Accurate 8-week window for Training Load, regardless of list pagination.
     const since = new Date(Date.now() - 63 * 24 * 60 * 60 * 1000).toISOString()
@@ -400,12 +356,14 @@ function HistoryClient() {
     setPage(0)
     setHasMore(initialWorkouts.length === PAGE_SIZE)
 
+    // BJJ/cardio aren't cursor-paged yet — a generous window keeps the
+    // interleaved timeline and heatmap honest for a year+ of logging.
     const { data: bj } = await supabase
       .from('bjj_sessions')
       .select('id,performed_at,duration_min,kind,intensity,notes')
       .eq('user_id', userId)
       .order('performed_at', { ascending: false })
-      .limit(PAGE_SIZE)
+      .limit(200)
     setBjj((bj || []) as BJJ[])
 
     const { data: cardioData } = await supabase
@@ -413,7 +371,7 @@ function HistoryClient() {
       .select('id,performed_at,activity,duration_minutes,distance,distance_unit,intensity,notes,source')
       .eq('user_id', userId)
       .order('performed_at', { ascending: false })
-      .limit(PAGE_SIZE)
+      .limit(200)
     setCardio((cardioData || []) as Cardio[])
 
     await loadProgressionData(userId)
@@ -502,14 +460,14 @@ function HistoryClient() {
         exercise_id,
         display_name,
         workout_id,
-        sets(weight, reps, set_type)
+        sets(weight, reps, set_type, completed)
       `)
       .in('workout_id', workoutIds)
 
     if (exerciseData) {
       const exerciseMap = new Map<string, {
         name: string
-        sessions: Array<{ date: string; maxWeight: number; totalVolume: number }>
+        sessions: Array<{ date: string; maxWeight: number; totalVolume: number; e1rm: number }>
       }>()
 
       exerciseData.forEach((item: any) => {
@@ -518,9 +476,16 @@ function HistoryClient() {
         if (!performedAt) return
         const date = new Date(performedAt).toISOString().split('T')[0]
 
-        const workingSets = item.sets?.filter((s: any) => s.set_type === 'working' && s.weight > 0) || []
+        // Completed working sets only — planned/failed sets aren't performance
+        const workingSets = item.sets?.filter(
+          (s: any) => s.set_type === 'working' && s.completed !== false && s.weight > 0
+        ) || []
         const maxWeight = workingSets.length > 0 ? Math.max(...workingSets.map((s: any) => s.weight)) : 0
         const totalVolume = workingSets.reduce((sum: number, s: any) => sum + (s.weight * s.reps), 0)
+        // True estimated 1RM from the session's best set (weight AND reps)
+        const e1rm = workingSets.length > 0
+          ? Math.max(...workingSets.map((s: any) => estimated1RM(s.weight, s.reps)))
+          : 0
 
         if (maxWeight > 0) {
           if (!exerciseMap.has(exerciseId)) {
@@ -531,9 +496,10 @@ function HistoryClient() {
           const existingSession = existing.sessions.find(s => s.date === date)
           if (existingSession) {
             existingSession.maxWeight = Math.max(existingSession.maxWeight, maxWeight)
-            existingSession.totalVolume = Math.max(existingSession.totalVolume, totalVolume)
+            existingSession.totalVolume += totalVolume // same day = one training day
+            existingSession.e1rm = Math.max(existingSession.e1rm, e1rm)
           } else {
-            existing.sessions.push({ date, maxWeight, totalVolume })
+            existing.sessions.push({ date, maxWeight, totalVolume, e1rm })
           }
         }
       })
@@ -547,7 +513,7 @@ function HistoryClient() {
             date: session.date,
             maxWeight: session.maxWeight,
             totalVolume: session.totalVolume,
-            oneRepMax: Math.round(session.maxWeight * (1 + 0.0333 * 10))
+            oneRepMax: session.e1rm
           }))
         }))
         .sort((a, b) => b.data.length - a.data.length)
@@ -637,7 +603,7 @@ function HistoryClient() {
         exercise_id,
         display_name,
         workout_id,
-        sets(weight, reps, set_type)
+        sets(weight, reps, set_type, completed)
       `)
       .in('workout_id', workoutIds)
       .in('exercise_id', Array.from(activeExerciseIds))
@@ -650,7 +616,7 @@ function HistoryClient() {
     // Group by exercise and calculate progress
     const exerciseMap = new Map<string, {
       name: string
-      sessions: Array<{ date: string; maxWeight: number; avgReps: number }>
+      sessions: Array<{ date: string; maxWeight: number; avgReps: number; setCount: number; e1rm: number }>
     }>()
 
     exerciseData.forEach((item: any) => {
@@ -659,11 +625,16 @@ function HistoryClient() {
       if (!performedAt) return
       const date = new Date(performedAt).toISOString().split('T')[0]
 
-      const workingSets = item.sets?.filter((s: any) => s.set_type === 'working' && s.weight > 0) || []
+      // Completed working sets only — planned/failed sets aren't performance
+      const workingSets = item.sets?.filter(
+        (s: any) => s.set_type === 'working' && s.completed !== false && s.weight > 0
+      ) || []
       if (workingSets.length === 0) return
 
       const maxWeight = Math.max(...workingSets.map((s: any) => s.weight))
       const avgReps = workingSets.reduce((sum: number, s: any) => sum + s.reps, 0) / workingSets.length
+      const setCount = workingSets.length
+      const e1rm = Math.max(...workingSets.map((s: any) => estimated1RM(s.weight, s.reps)))
 
       if (!exerciseMap.has(exerciseId)) {
         exerciseMap.set(exerciseId, {
@@ -675,10 +646,15 @@ function HistoryClient() {
       const existing = exerciseMap.get(exerciseId)!
       const existingSession = existing.sessions.find(s => s.date === date)
       if (existingSession) {
+        // Same-day sessions merge: pool the reps average, keep the best top set
         existingSession.maxWeight = Math.max(existingSession.maxWeight, maxWeight)
-        existingSession.avgReps = Math.max(existingSession.avgReps, avgReps)
+        existingSession.e1rm = Math.max(existingSession.e1rm, e1rm)
+        existingSession.avgReps =
+          (existingSession.avgReps * existingSession.setCount + avgReps * setCount) /
+          (existingSession.setCount + setCount)
+        existingSession.setCount += setCount
       } else {
-        existing.sessions.push({ date, maxWeight, avgReps })
+        existing.sessions.push({ date, maxWeight, avgReps, setCount, e1rm })
       }
     })
 
@@ -694,10 +670,10 @@ function HistoryClient() {
       const weightChange = latestSession.maxWeight - firstSession.maxWeight
       const repsChange = Math.round(latestSession.avgReps - firstSession.avgReps)
 
-      // Calculate percentage change based on weight primarily
+      // Progress = estimated 1RM change, so rep gains at the same weight count
       let percentChange = 0
-      if (firstSession.maxWeight > 0) {
-        percentChange = ((latestSession.maxWeight - firstSession.maxWeight) / firstSession.maxWeight) * 100
+      if (firstSession.e1rm > 0) {
+        percentChange = ((latestSession.e1rm - firstSession.e1rm) / firstSession.e1rm) * 100
       }
 
       // Determine trend
@@ -717,7 +693,7 @@ function HistoryClient() {
         percentChange: Math.round(percentChange * 10) / 10,
         sessionCount: data.sessions.length,
         trend,
-        series: data.sessions.map(s => s.maxWeight)
+        series: data.sessions.map(s => s.e1rm)
       })
     })
 
@@ -750,7 +726,7 @@ function HistoryClient() {
         exercise_id,
         display_name,
         workout_id,
-        sets(weight, reps, set_type)
+        sets(weight, reps, set_type, completed)
       `)
       .in('workout_id', workoutIds)
 
@@ -762,7 +738,7 @@ function HistoryClient() {
     // Group by exercise and calculate progress
     const exerciseMap = new Map<string, {
       name: string
-      sessions: Array<{ date: string; maxWeight: number; avgReps: number }>
+      sessions: Array<{ date: string; maxWeight: number; avgReps: number; setCount: number; e1rm: number }>
     }>()
 
     exerciseData.forEach((item: any) => {
@@ -771,11 +747,16 @@ function HistoryClient() {
       if (!performedAt) return
       const date = new Date(performedAt).toISOString().split('T')[0]
 
-      const workingSets = item.sets?.filter((s: any) => s.set_type === 'working' && s.weight > 0) || []
+      // Completed working sets only — planned/failed sets aren't performance
+      const workingSets = item.sets?.filter(
+        (s: any) => s.set_type === 'working' && s.completed !== false && s.weight > 0
+      ) || []
       if (workingSets.length === 0) return
 
       const maxWeight = Math.max(...workingSets.map((s: any) => s.weight))
       const avgReps = workingSets.reduce((sum: number, s: any) => sum + s.reps, 0) / workingSets.length
+      const setCount = workingSets.length
+      const e1rm = Math.max(...workingSets.map((s: any) => estimated1RM(s.weight, s.reps)))
 
       if (!exerciseMap.has(exerciseId)) {
         exerciseMap.set(exerciseId, {
@@ -787,10 +768,15 @@ function HistoryClient() {
       const existing = exerciseMap.get(exerciseId)!
       const existingSession = existing.sessions.find(s => s.date === date)
       if (existingSession) {
+        // Same-day sessions merge: pool the reps average, keep the best top set
         existingSession.maxWeight = Math.max(existingSession.maxWeight, maxWeight)
-        existingSession.avgReps = Math.max(existingSession.avgReps, avgReps)
+        existingSession.e1rm = Math.max(existingSession.e1rm, e1rm)
+        existingSession.avgReps =
+          (existingSession.avgReps * existingSession.setCount + avgReps * setCount) /
+          (existingSession.setCount + setCount)
+        existingSession.setCount += setCount
       } else {
-        existing.sessions.push({ date, maxWeight, avgReps })
+        existing.sessions.push({ date, maxWeight, avgReps, setCount, e1rm })
       }
     })
 
@@ -806,9 +792,10 @@ function HistoryClient() {
       const weightChange = latestSession.maxWeight - firstSession.maxWeight
       const repsChange = Math.round(latestSession.avgReps - firstSession.avgReps)
 
+      // Progress = estimated 1RM change, so rep gains at the same weight count
       let percentChange = 0
-      if (firstSession.maxWeight > 0) {
-        percentChange = ((latestSession.maxWeight - firstSession.maxWeight) / firstSession.maxWeight) * 100
+      if (firstSession.e1rm > 0) {
+        percentChange = ((latestSession.e1rm - firstSession.e1rm) / firstSession.e1rm) * 100
       }
 
       let trend: 'up' | 'down' | 'stagnant' = 'stagnant'
@@ -827,7 +814,7 @@ function HistoryClient() {
         percentChange: Math.round(percentChange * 10) / 10,
         sessionCount: data.sessions.length,
         trend,
-        series: data.sessions.map(s => s.maxWeight)
+        series: data.sessions.map(s => s.e1rm)
       })
     })
 
@@ -944,7 +931,7 @@ function HistoryClient() {
     if (!p) return null
     return {
       name: p.exerciseName,
-      unit: 'lb',
+      unit,
       points: p.data.map(d => ({ date: d.date, oneRepMax: d.oneRepMax, maxWeight: d.maxWeight })),
     }
   }, [detailExerciseId, progressionData])
@@ -1074,7 +1061,7 @@ function HistoryClient() {
                           >
                             <div className="min-w-0">
                               <p className="font-medium text-white text-sm truncate">{exercise.exerciseName}</p>
-                              <p className="text-xs text-zinc-500">{exercise.firstWeight} → {exercise.latestWeight} lb · {exercise.sessionCount} sessions</p>
+                              <p className="text-xs text-zinc-500">{exercise.firstWeight} → {exercise.latestWeight} {unit} · {exercise.sessionCount} sessions</p>
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">
                               <Sparkline data={exercise.series} stroke="#34D399" />
@@ -1104,7 +1091,7 @@ function HistoryClient() {
                           >
                             <div className="min-w-0">
                               <p className="font-medium text-white text-sm truncate">{exercise.exerciseName}</p>
-                              <p className="text-xs text-zinc-500">{exercise.firstWeight} → {exercise.latestWeight} lb · {exercise.trend === 'stagnant' ? 'Stagnant' : 'Regressed'}</p>
+                              <p className="text-xs text-zinc-500">{exercise.firstWeight} → {exercise.latestWeight} {unit} · {exercise.trend === 'stagnant' ? 'Stagnant' : 'Regressed'}</p>
                             </div>
                             <div className="flex items-center gap-3 flex-shrink-0">
                               <Sparkline data={exercise.series} stroke={exercise.trend === 'down' ? '#F87171' : '#FBBF24'} />
@@ -1145,9 +1132,9 @@ function HistoryClient() {
             <ActivityHeatmap
               streakWeeks={streakData?.strength.current ?? 0}
               activities={[
-                ...workouts.map((w) => ({ date: w.performed_at.split('T')[0], type: 'strength' as const })),
-                ...bjj.map((b) => ({ date: b.performed_at.split('T')[0], type: 'bjj' as const })),
-                ...cardio.map((c) => ({ date: c.performed_at.split('T')[0], type: 'cardio' as const })),
+                ...workouts.map((w) => ({ date: w.performed_at, type: 'strength' as const })),
+                ...bjj.map((b) => ({ date: b.performed_at, type: 'bjj' as const })),
+                ...cardio.map((c) => ({ date: c.performed_at, type: 'cardio' as const })),
               ]}
             />
           </>
@@ -1246,7 +1233,7 @@ function HistoryClient() {
                   </div>
                 </AnimatedCard>
               ) : (
-                allActivities.slice(0, 30).map((activity, index) => {
+                allActivities.slice(0, visibleCount).map((activity, index) => {
                   const colors = getActivityColor(activity.type)
 
                   return (
@@ -1301,11 +1288,16 @@ function HistoryClient() {
                 })
               )}
 
-              {hasMore && activityFilter === 'all' && workoutFilter === 'all' && (
+              {(allActivities.length > visibleCount || hasMore) && (
                 <div className="text-center pt-4">
                   <Button
                     variant="secondary"
-                    onClick={loadMore}
+                    onClick={() => {
+                      // Reveal more of what's loaded, and pull the next strength
+                      // page so the well doesn't run dry.
+                      setVisibleCount((c) => c + 30)
+                      if (hasMore) loadMore()
+                    }}
                     loading={loadingMore}
                   >
                     Load More

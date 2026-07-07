@@ -278,6 +278,7 @@ export default function BJJPage() {
         .select('partners')
         .eq('user_id', userId)
         .not('partners', 'is', null)
+        .order('performed_at', { ascending: false })
         .limit(200)
       const names = new Set<string>()
       for (const r of partnerRows ?? []) for (const n of (r.partners ?? [])) names.add(n)

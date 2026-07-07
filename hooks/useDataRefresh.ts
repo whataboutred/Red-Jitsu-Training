@@ -14,7 +14,16 @@ export function useDataRefresh(refresh: () => void) {
   refreshRef.current = refresh
 
   useEffect(() => {
-    const run = () => refreshRef.current()
+    // Debounce: visibilitychange + focus fire together on tab/PWA resume, and
+    // an offline-queue drain can notify once per item — collapse bursts into
+    // one refetch instead of hammering the page's queries concurrently.
+    let last = 0
+    const run = () => {
+      const now = Date.now()
+      if (now - last < 400) return
+      last = now
+      refreshRef.current()
+    }
     const onVisibility = () => {
       if (!document.hidden) run()
     }
