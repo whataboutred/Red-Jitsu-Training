@@ -40,7 +40,7 @@ export function detectPR(
 /**
  * Format a 1RM value for display.
  */
-export function format1RM(weight: number, reps: number, unit: string = 'lb'): string {
+export function format1RM(weight: number, reps: number, unit: string): string {
   const e1rm = estimated1RM(weight, reps)
   if (e1rm <= 0) return ''
   return `Est. 1RM: ${e1rm} ${unit}`
