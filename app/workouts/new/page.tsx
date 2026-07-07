@@ -1120,6 +1120,7 @@ export default function NewWorkoutPage() {
       const payload: PendingWorkout = {
         client_id: crypto.randomUUID(),
         queued_at: new Date().toISOString(),
+        user_id: userId,
         performed_at: iso,
         title: title || null,
         note: notes || null,

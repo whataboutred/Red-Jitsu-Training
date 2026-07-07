@@ -18,6 +18,7 @@ type WorkoutSet = {
   reps: number | null
   set_type: string
   set_index: number
+  completed: boolean | null
 }
 
 type Exercise = {
@@ -36,6 +37,7 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
   const [exercises, setExercises] = useState<Exercise[]>([])
   const [workout, setWorkout] = useState<{ performed_at: string; title: string | null } | null>(null)
   const [metrics, setMetrics] = useState<{ avg_hr: number | null; calories: number | null; active_minutes: number | null } | null>(null)
+  const [unit, setUnit] = useState<'lb' | 'kg'>('lb')
   const [deleting, setDeleting] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [open, setOpen] = useState(true)
@@ -54,6 +56,11 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
       if (!userId) {
         return
       }
+
+      // Weight labels follow the profile's unit
+      supabase.from('profiles').select('unit').eq('id', userId).maybeSingle().then(({ data }) => {
+        if (data?.unit === 'kg' || data?.unit === 'lb') setUnit(data.unit)
+      })
 
       // Step 1: Query workout basic info (+ any watch metadata from Fitbit)
       const { data: workoutResults, error: workoutError } = await supabase
@@ -91,7 +98,7 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
         const wexIds = exerciseData.map((wex: any) => wex.id)
         const { data: setsData, error: setsError } = await supabase
           .from('sets')
-          .select('id, workout_exercise_id, weight, reps, set_type, set_index')
+          .select('id, workout_exercise_id, weight, reps, set_type, set_index, completed')
           .in('workout_exercise_id', wexIds)
           .order('set_index')
 
@@ -105,7 +112,8 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
           weight: set.weight,
           reps: set.reps,
           set_type: set.set_type,
-          set_index: set.set_index
+          set_index: set.set_index,
+          completed: set.completed
         }))
 
         setSets(allSets)
@@ -130,7 +138,8 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
     return acc
   }, {} as Record<string, WorkoutSet[]>)
 
-  const workingSetsAll = sets.filter(s => s.set_type !== 'warmup')
+  // Stats count only completed working sets — planned/skipped sets aren't work done
+  const workingSetsAll = sets.filter(s => s.set_type !== 'warmup' && s.completed !== false)
   const totalVolume = Math.round(
     workingSetsAll.reduce((sum, s) => sum + (s.weight ?? 0) * (s.reps ?? 0), 0)
   )
@@ -251,19 +260,19 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
                 </div>
                 <div className="bg-surface-elevated rounded-xl p-3 text-center">
                   <div className="font-display text-2xl text-brand-red leading-none">{totalVolume.toLocaleString()}</div>
-                  <div className="text-[10px] uppercase tracking-wider text-zinc-500 mt-1">Volume (lb)</div>
+                  <div className="text-[10px] uppercase tracking-wider text-zinc-500 mt-1">Volume ({unit})</div>
                 </div>
               </div>
             )}
 
             {Object.entries(groupedSets).map(([exerciseId, exerciseSets]) => {
               const workingSets = exerciseSets.filter(s => s.set_type !== 'warmup')
-              const setsWithData = workingSets.filter(s => s.weight !== null || s.reps !== null).length
+              const setsWithData = workingSets.filter(s => s.completed !== false && (s.weight !== null || s.reps !== null)).length
               const totalSets = workingSets.length
-              // Calculate best estimated 1RM for this exercise
+              // Best estimated 1RM among completed sets only
               const best1RM = Math.max(
                 ...workingSets
-                  .filter(s => s.weight && s.reps)
+                  .filter(s => s.completed !== false && s.weight && s.reps)
                   .map(s => estimated1RM(s.weight!, s.reps!)),
                 0
               )
@@ -284,24 +293,27 @@ export default function WorkoutDetail({ workoutId, onClose }: { workoutId: strin
                   <div className="mt-1.5">
                     {exerciseSets.map((set) => {
                       const hasData = set.weight !== null || set.reps !== null
+                      const skipped = set.completed === false
                       return (
                         <div
                           key={set.id}
-                          className="flex items-center gap-3 py-1.5 border-b border-white/[0.04] last:border-0 text-sm tabular-nums"
+                          className={`flex items-center gap-3 py-1.5 border-b border-white/[0.04] last:border-0 text-sm tabular-nums ${skipped ? 'opacity-50' : ''}`}
                         >
                           <span className="w-4 text-xs text-zinc-600">{set.set_index}</span>
                           {hasData ? (
                             <>
-                              {set.weight !== null && <span className="text-white font-medium">{set.weight} lb</span>}
+                              {set.weight !== null && <span className="text-white font-medium">{set.weight} {unit}</span>}
                               {set.weight !== null && set.reps !== null && <span className="text-zinc-600">×</span>}
                               {set.reps !== null && <span className="text-zinc-300">{set.reps} reps</span>}
                             </>
                           ) : (
                             <span className="text-zinc-600 italic">No data recorded</span>
                           )}
-                          {set.set_type === 'warmup' && (
+                          {set.set_type === 'warmup' ? (
                             <span className="ml-auto text-[10px] uppercase tracking-wide text-amber-400/80">warmup</span>
-                          )}
+                          ) : skipped ? (
+                            <span className="ml-auto text-[10px] uppercase tracking-wide text-zinc-600">skipped</span>
+                          ) : null}
                         </div>
                       )
                     })}

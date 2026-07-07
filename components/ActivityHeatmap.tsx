@@ -3,6 +3,7 @@
 import { useMemo } from 'react'
 import { motion } from 'framer-motion'
 import { Calendar, Flame } from 'lucide-react'
+import { localDateKey } from '@/lib/dateUtils'
 
 type ActivityType = 'strength' | 'bjj' | 'cardio'
 
@@ -38,18 +39,20 @@ export default function ActivityHeatmap({ activities, streakWeeks = 0 }: Activit
 
     const activityMap = new Map<string, ActivityType[]>()
     for (const a of activities) {
-      const key = a.date.slice(0, 10)
+      // a.date may be a full ISO timestamp — bucket by the LOCAL calendar day,
+      // not the UTC one, or evening sessions land on tomorrow's cell.
+      const key = a.date.length > 10 ? localDateKey(a.date) : a.date.slice(0, 10)
       const list = activityMap.get(key) || []
       list.push(a.type)
       activityMap.set(key, list)
     }
 
+    // Anchor the window to the CURRENT week (its Sunday), then go back
+    // WEEKS-1 full weeks — so today always renders in the last column.
     const startDate = new Date(today)
-    startDate.setDate(startDate.getDate() - (DAYS - 1))
-    const dayOfWeek = startDate.getDay()
-    startDate.setDate(startDate.getDate() - dayOfWeek)
+    startDate.setDate(startDate.getDate() - startDate.getDay() - (WEEKS - 1) * 7)
 
-    const cells: { row: number; col: number; types: ActivityType[]; date: Date }[] = []
+    const cells: { row: number; col: number; types: ActivityType[]; date: Date; future: boolean }[] = []
     const months: { col: number; label: string }[] = []
     const seenMonths = new Set<string>()
     const activeSet = new Set<string>()
@@ -58,11 +61,11 @@ export default function ActivityHeatmap({ activities, streakWeeks = 0 }: Activit
       for (let row = 0; row < 7; row++) {
         const d = new Date(startDate)
         d.setDate(d.getDate() + col * 7 + row)
-        const key = d.toISOString().slice(0, 10)
+        const key = localDateKey(d)
         const types = activityMap.get(key) || []
 
         if (types.length > 0) activeSet.add(key)
-        cells.push({ row, col, types, date: d })
+        cells.push({ row, col, types, date: d, future: d.getTime() > today.getTime() })
 
         if (row === 0) {
           const monthKey = `${d.getFullYear()}-${d.getMonth()}`
@@ -152,10 +155,14 @@ export default function ActivityHeatmap({ activities, streakWeeks = 0 }: Activit
           {grid.map((cell, i) => (
             <div
               key={i}
-              className={`rounded-[4px] aspect-square ${getColor(cell.types)}`}
-              title={`${cell.date.toLocaleDateString()}: ${
-                cell.types.length > 0 ? cell.types.join(', ') : 'No activity'
-              }`}
+              className={`rounded-[4px] aspect-square ${cell.future ? 'bg-transparent' : getColor(cell.types)}`}
+              title={
+                cell.future
+                  ? undefined
+                  : `${cell.date.toLocaleDateString()}: ${
+                      cell.types.length > 0 ? cell.types.join(', ') : 'No activity'
+                    }`
+              }
             />
           ))}
         </div>

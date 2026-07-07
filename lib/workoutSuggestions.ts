@@ -49,7 +49,7 @@ export async function getLastWorkoutSetsForExercises(
           location,
           workout_exercises!inner(
             exercise_id,
-            sets(weight, reps, set_type, set_index)
+            sets(weight, reps, set_type, set_index, completed)
           )
         `)
         .eq('user_id', userId)
@@ -68,7 +68,7 @@ export async function getLastWorkoutSetsForExercises(
             performed_at,
             workout_exercises!inner(
               exercise_id,
-              sets(weight, reps, set_type, set_index)
+              sets(weight, reps, set_type, set_index, completed)
             )
           `)
           .eq('user_id', userId)
@@ -108,6 +108,9 @@ export async function getLastWorkoutSetsForExercises(
         }
 
         const formattedSets = sets
+          // Only completed sets are real history — a planned/failed set isn't
+          // a reference weight or an overload baseline.
+          .filter((s: any) => s.completed !== false)
           .sort((a: any, b: any) => (a.set_index || 0) - (b.set_index || 0))
           .map((s: any) => ({
             weight: Number(s.weight),
@@ -213,7 +216,7 @@ export async function getLastThreeWorkouts(
           location,
           workout_exercises(
             exercise_id,
-            sets(weight, reps, set_type, set_index)
+            sets(weight, reps, set_type, set_index, completed)
           )
         `)
         .eq('user_id', userId)
@@ -243,7 +246,7 @@ export async function getLastThreeWorkouts(
             performed_at,
             workout_exercises(
               exercise_id,
-              sets(weight, reps, set_type, set_index)
+              sets(weight, reps, set_type, set_index, completed)
             )
           `)
           .eq('user_id', userId)
@@ -281,6 +284,9 @@ export async function getLastThreeWorkouts(
 
       if (sets.length > 0) {
         const formattedSets = sets
+          // Only completed sets are real history — a planned/failed set isn't
+          // a reference weight or an overload baseline.
+          .filter((s: any) => s.completed !== false)
           .sort((a: any, b: any) => (a.set_index || 0) - (b.set_index || 0))
           .map((s: any) => ({
             weight: Number(s.weight),

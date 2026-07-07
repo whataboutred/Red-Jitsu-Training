@@ -52,7 +52,7 @@ export async function detectAndSaveNewPRs(
   // in and pollute the real user's PR baseline.
   const { data: history, error } = await supabase
     .from('workout_exercises')
-    .select('exercise_id, sets(weight, reps, set_type), workouts!inner(user_id)')
+    .select('exercise_id, sets(weight, reps, set_type, completed), workouts!inner(user_id)')
     .eq('workouts.user_id', userId)
     .in('exercise_id', bests.map((b) => b.exerciseId))
     .neq('workout_id', workoutId)
@@ -67,7 +67,9 @@ export async function detectAndSaveNewPRs(
   const priorSetCount = new Map<string, number>()
   for (const row of history ?? []) {
     for (const s of row.sets ?? []) {
-      if (s.set_type === 'warmup' || s.weight <= 0 || s.reps <= 0) continue
+      // Planned-but-not-completed sets aren't performance — a failed 225×5
+      // must not block next week's genuine 225×5 from counting as a PR.
+      if (s.set_type === 'warmup' || s.completed === false || s.weight <= 0 || s.reps <= 0) continue
       priorSetCount.set(row.exercise_id, (priorSetCount.get(row.exercise_id) ?? 0) + 1)
       const e1rm = estimated1RM(s.weight, s.reps)
       const prev = historicalMax.get(row.exercise_id)

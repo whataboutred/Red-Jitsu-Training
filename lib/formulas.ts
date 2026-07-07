@@ -5,11 +5,13 @@
 /**
  * Estimate 1 Rep Max using the Epley formula.
  * Only valid for reps > 1. For 1 rep, the weight IS the 1RM.
+ * Reps are capped at 12 — Epley diverges badly past that, and an uncapped
+ * burnout set (135×25) would out-score a genuine heavy double.
  */
 export function estimated1RM(weight: number, reps: number): number {
   if (reps <= 0 || weight <= 0) return 0
   if (reps === 1) return weight
-  return Math.round(weight * (1 + reps / 30))
+  return Math.round(weight * (1 + Math.min(reps, 12) / 30))
 }
 
 /**
