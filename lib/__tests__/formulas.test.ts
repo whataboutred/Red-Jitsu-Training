@@ -18,6 +18,12 @@ describe('estimated1RM', () => {
     expect(estimated1RM(100, 0)).toBe(0)
     expect(estimated1RM(-10, 5)).toBe(0)
   })
+
+  it('caps reps at 12 so burnout sets cannot out-score heavy sets', () => {
+    expect(estimated1RM(135, 25)).toBe(estimated1RM(135, 12))
+    // 225x2 (e1RM 240) must beat 135x25 (capped at 189)
+    expect(estimated1RM(225, 2)).toBeGreaterThan(estimated1RM(135, 25))
+  })
 })
 
 describe('detectPR', () => {
@@ -53,6 +59,6 @@ describe('format1RM', () => {
   })
 
   it('returns empty for invalid input', () => {
-    expect(format1RM(0, 0)).toBe('')
+    expect(format1RM(0, 0, 'lb')).toBe('')
   })
 })

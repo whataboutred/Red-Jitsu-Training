@@ -78,9 +78,21 @@ describe('walk HR gate', () => {
     expect(mapExerciseToCardio(walkWith(600, 400), [], 15)).not.toBeNull() // 10 mod + ~7 vig
   })
 
-  it('drops walks with no HR zone data at all', () => {
+  // No HR data → fall back to a 45-minute duration gate: a long deliberate
+  // walk still counts, a short stroll doesn't.
+  it('keeps a 45-minute walk with no HR zone data (duration fallback)', () => {
     const bare = dp({ exerciseType: 'WALKING', displayName: 'Walk', metricsSummary: undefined })
-    expect(mapExerciseToCardio(bare, [], 15)).toBeNull()
+    expect(mapExerciseToCardio(bare, [], 15)).not.toBeNull()
+  })
+
+  it('drops a short walk with no HR zone data', () => {
+    const short = dp({
+      exerciseType: 'WALKING',
+      displayName: 'Walk',
+      metricsSummary: undefined,
+      activeDuration: '1500s', // 25 min < 45-min fallback gate
+    })
+    expect(mapExerciseToCardio(short, [], 15)).toBeNull()
   })
 
   it('does not apply the gate to non-walks', () => {

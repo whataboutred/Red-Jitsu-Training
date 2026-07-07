@@ -8,7 +8,6 @@ export type NewPR = {
   reps: number
   estimated1rm: number
   /** True when this is the first time the exercise has ever been logged. */
-  isFirst: boolean
 }
 
 type SavedExercise = {
@@ -75,7 +74,8 @@ export async function detectAndSaveNewPRs(
       const prev = historicalMax.get(row.exercise_id)
       historicalMax.set(row.exercise_id, {
         weight: Math.max(prev?.weight ?? 0, s.weight),
-        reps: s.reps,
+        // reps belong to the best (max-e1RM) set, not whichever row came last
+        reps: e1rm > (prev?.estimated1rm ?? 0) ? s.reps : prev?.reps ?? s.reps,
         estimated1rm: Math.max(prev?.estimated1rm ?? 0, e1rm),
       })
     }
@@ -93,7 +93,6 @@ export async function detectAndSaveNewPRs(
         weight: best.weight,
         reps: best.reps,
         estimated1rm: estimated1RM(best.weight, best.reps),
-        isFirst: prior === null,
       })
     }
   }
