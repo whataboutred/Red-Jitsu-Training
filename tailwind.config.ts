@@ -1,7 +1,13 @@
 import type { Config } from "tailwindcss"
 
 export default {
-  content: ["./app/**/*.{js,ts,jsx,tsx}", "./components/**/*.{js,ts,jsx,tsx}"],
+  // lib/ holds class literals too (lib/belt.ts belt styles) — leaving it
+  // unscanned silently drops those utilities from the build.
+  content: [
+    "./app/**/*.{js,ts,jsx,tsx}",
+    "./components/**/*.{js,ts,jsx,tsx}",
+    "./lib/**/*.{js,ts,jsx,tsx}",
+  ],
   // Only apply hover: styles on devices that actually have a hover-capable
   // pointer. Stops hover states from sticking after a tap on iOS.
   future: {
