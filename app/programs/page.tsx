@@ -543,11 +543,19 @@ export default function ProgramsPage() {
       return
     }
 
-    const validDays = days.filter(day => day.items.length > 0)
-    if (validDays.length === 0) {
+    // Require at least one day with exercises so we never save an empty program.
+    if (!days.some(day => day.items.length > 0)) {
       toast.warning('Please add exercises to at least one training day')
       return
     }
+
+    // Persist every day that carries real content — exercises, a name, or a
+    // schedule. Only truly-blank placeholder days are dropped. Filtering down to
+    // days-with-exercises here would silently delete rest days and scheduled
+    // days on save (that's the "my days disappeared" bug).
+    const daysToSave = days.filter(day =>
+      day.items.length > 0 || day.name.trim() !== '' || day.dows.length > 0
+    )
 
     try {
       if (selected) {
@@ -556,8 +564,8 @@ export default function ProgramsPage() {
 
         // Create new days first, then delete old ones (prevents data loss on failure)
         const newDayIds: string[] = []
-        for (let i = 0; i < validDays.length; i++) {
-          const day = validDays[i]
+        for (let i = 0; i < daysToSave.length; i++) {
+          const day = daysToSave[i]
           const { data: insDay, error: dayError } = await supabase.from('program_days').insert({
             program_id: selected.id,
             name: day.name || `Day ${i + 1}`,
@@ -613,8 +621,8 @@ export default function ProgramsPage() {
         if (progError || !prog) throw new Error('Failed to create program')
 
         const createdDayIds: string[] = []
-        for (let i = 0; i < validDays.length; i++) {
-          const day = validDays[i]
+        for (let i = 0; i < daysToSave.length; i++) {
+          const day = daysToSave[i]
           const { data: insDay, error: dayError } = await supabase.from('program_days').insert({
             program_id: prog.id,
             name: day.name || `Day ${i + 1}`,
