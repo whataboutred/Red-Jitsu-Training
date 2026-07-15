@@ -1,6 +1,6 @@
 # Red Jitsu Training — Complete Training Tracker (Next.js + Supabase)
 
-**Live app:** https://redjitsu.vercel.app/
+**Live app:** https://jitsu.redlabs.app/
 
 A comprehensive training companion for both strength training and Brazilian Jiu-Jitsu. Features a sleek mobile-first design with a black/red theme, workout programs, progress tracking, and goal management. Built as a Progressive Web App (PWA) with offline capabilities.
 
